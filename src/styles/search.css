@@ -1,0 +1,223 @@
+/* ============================================================================
+   Command-Palette Search Modal (Ctrl+K / Cmd+K)
+   ============================================================================ */
+
+.search-backdrop {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  align-items: flex-start;
+  justify-content: center;
+  padding: 10vh 16px 24px;
+  animation: fadeIn 0.12s ease;
+}
+
+.search-backdrop[open] {
+  display: flex;
+}
+
+.search-backdrop::backdrop {
+  background: var(--overlay-bg);
+}
+
+.search-modal {
+  width: min(620px, 100%);
+  max-height: 74vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--edge);
+  background: var(--sheet);
+  box-shadow: var(--pop-shadow-lg);
+  overflow: hidden;
+}
+
+.search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1.5px solid var(--line-strong);
+  background: var(--paper-2);
+}
+
+.search-input-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 500;
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--muted);
+}
+
+.search-clear-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--line-strong);
+  background: var(--sheet);
+  color: var(--muted);
+  border-radius: var(--radius-xs);
+  padding: 2px 7px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.search-clear-btn:hover {
+  border-color: var(--edge);
+  color: var(--ink);
+}
+
+.search-results {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.search-group-label {
+  padding: 4px 8px 2px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.search-result-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease, border-color 0.1s ease;
+}
+
+.search-result-item:hover,
+.search-result-item--active {
+  background: var(--green);
+  border-color: var(--edge);
+  box-shadow: var(--pop-shadow-sm);
+}
+
+.search-result-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.search-result-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.search-result-title {
+  font-size: 12.8px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.search-result-meta {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.search-result-item--active .search-result-meta {
+  color: var(--ink-2);
+}
+
+.search-result-snippet {
+  font-size: 11.5px;
+  color: var(--ink-2);
+  line-height: 1.48;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.search-highlight {
+  background: var(--orange);
+  color: var(--ink);
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+.search-result-arrow {
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.search-result-item--active .search-result-arrow {
+  color: var(--ink);
+}
+
+.search-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.search-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--paper-2);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.search-footer-keys {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-footer-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
