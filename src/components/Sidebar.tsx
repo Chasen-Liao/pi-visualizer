@@ -7,6 +7,8 @@ import {
   ChevronUp,
   Folder,
   FolderOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import type { Chapter } from '../types/lesson';
 
@@ -16,6 +18,8 @@ export interface SidebarProps {
   completedLessons: Set<string>;
   onSelectLesson: (slug: string) => void;
   onResetProgress: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 export function Sidebar({
@@ -24,6 +28,8 @@ export function Sidebar({
   completedLessons,
   onSelectLesson,
   onResetProgress,
+  collapsed = false,
+  onToggleCollapsed,
 }: SidebarProps) {
   const [openChapters, setOpenChapters] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -60,6 +66,8 @@ export function Sidebar({
     0,
   );
   const progressPct = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
+  const toggleLabel = collapsed ? '展开课程目录' : '折叠课程目录';
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   const toggleChapter = (chapterId: string) => {
     setOpenChapters((prev) => ({
@@ -69,8 +77,23 @@ export function Sidebar({
   };
 
   return (
-    <aside className="sidebar" aria-label="课程章节导航">
+    <aside
+      className={collapsed ? 'sidebar sidebar--collapsed' : 'sidebar'}
+      aria-label="课程章节导航"
+    >
       <div className="sidebar-header">
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            className="tactile-btn sidebar-collapse-btn"
+            onClick={onToggleCollapsed}
+            aria-expanded={!collapsed}
+            aria-label={toggleLabel}
+            title={toggleLabel}
+          >
+            <ToggleIcon size={16} aria-hidden="true" />
+          </button>
+        )}
         <span className="sidebar-eyebrow">课程目录 · CURRICULUM</span>
         <span className="sidebar-count-pill">
           {chapters.length} 章 · {totalLessons} 课

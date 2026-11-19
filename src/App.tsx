@@ -129,6 +129,7 @@ export function App() {
   const [replayKey, setReplayKey] = useState(0);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Sync route state -> URL hash
   const navigate = useCallback((next: RouteState) => {
@@ -452,13 +453,17 @@ export function App() {
           />
         </div>
       ) : currentLesson && currentStep ? (
-        <div className="workspace-grid">
+        <div
+          className={sidebarCollapsed ? 'workspace-grid workspace-grid--sidebar-collapsed' : 'workspace-grid'}
+        >
           <Sidebar
             chapters={CHAPTERS}
             activeLessonSlug={currentLesson.slug}
             completedLessons={completedLessons}
             onSelectLesson={(slug) => handleSelectLesson(slug, 1)}
             onResetProgress={handleResetProgress}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={() => setSidebarCollapsed((collapsed) => !collapsed)}
           />
 
           <div className="stage-slot">

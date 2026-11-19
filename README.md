@@ -24,4 +24,6 @@ npm run dev
 
 课程的架构与流程参考了 [Mario Zechner（badlogic）](https://github.com/badlogic) 创建的 [Pi Coding Agent](https://github.com/earendil-works/pi)。感谢 Mario 和 Pi 的所有贡献者公开源码与文档，让我们能沿着实际实现学习 Agent 的设计。
 
+网页的交互式教学设计受到 [Dilum Sanjaya](https://dilum.dev/) 的 [Designed to Scale](https://designed-to-scale.vercel.app/) 启发。感谢他分享用可逐步播放的动画图解讲解系统架构的设计思路。
+
 这是 Chasen Liao 维护的独立中文学习项目。课程中的示例包含为教学简化的代码，具体行为请以对应版本的 Pi 源码为准。Pi 源码及节选遵循 [上游 MIT 许可证](THIRD_PARTY_NOTICES.md)。
