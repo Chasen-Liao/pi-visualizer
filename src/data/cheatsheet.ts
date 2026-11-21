@@ -2,22 +2,21 @@ import type { CheatsheetData } from '../types/lesson';
 
 // ============================================================================
 // Pi Coding Agent Architecture Cheatsheet — Single-Page Technical Reference
-// Verified against https://github.com/earendil-works/pi (main branch)
+// Verified against https://github.com/earendil-works/pi (v1.5.2)
 // ============================================================================
 
 export const CHEATSHEET_DATA: CheatsheetData = {
   hero: {
-    eyebrow: 'PI CODING AGENT · SOURCE-VERIFIED ARCHITECTURE CHEATSHEET',
+    eyebrow: 'PI CODING AGENT · v1.5.2',
     title: 'Pi Agent Loop 架构速查表',
     subtitle:
-      '基于 earendil-works/pi（原 badlogic/pi-mono）main 分支源码逐项核验的控制流、事件契约、默认参数与架构取舍一览',
+      '对照 Pi v1.5.2 的控制流、事件契约、默认参数与架构取舍',
     repoNote: 'github.com/earendil-works/pi · @earendil-works/pi-* · MIT',
-    disambiguationNote:
-      '概念消歧：本速查表解析的是 Mario Zechner 打造的开源编码代理 Pi Coding Agent（earendil-works/pi，OpenClaw 底层引擎），并非技术派 Java 工作流项目 PaiAgent，也非 Inflection AI 情感陪伴机器人 Pi（pi.ai）。',
+    scopeNote: '源码链接指向对应版本，动画中的 Token、延迟和命中率用于说明机制。',
     stats: [
-      { label: '核心循环源码', value: '2,548 行 / 6 文件', tone: 'green' },
+      { label: '核心循环源码', value: '2,555 行 / 6 文件', tone: 'green' },
       { label: '默认内置工具', value: '4 把原子工具', tone: 'blue' },
-      { label: '基线提示词', value: '< 1,000 tokens', tone: 'violet' },
+      { label: '缓存预热默认', value: 'idle · 最多 30 分钟', tone: 'violet' },
       { label: '生命周期事件', value: '10 种 AgentEvent', tone: 'orange' },
       { label: '压缩默认阈值', value: '16,384 / 20,000 tok', tone: 'neutral' },
     ],
@@ -42,10 +41,10 @@ export const CHEATSHEET_DATA: CheatsheetData = {
           id: 'ctrl-entry-loop',
           phase: 'outer',
           title: '新提示主入口',
-          identifier: 'agentLoop(prompts, context, config, signal, streamFn)',
+          identifier: 'runAgentLoop(prompts, context, config, emit, signal, streamFn)',
           trigger: 'Agent.prompt() 提交新用户消息或消息数组时调用',
           behavior:
-            '立即返回 EventStream<AgentEvent, AgentMessage[]>；经 declareToolChanges 补齐工具差量声明，发射 agent_start / turn_start / 初始消息事件后进入 runLoop()。',
+            '补齐工具差量声明并发出启动事件，然后进入 runLoop()。独立的低层包装 agentLoop() 才会返回 EventStream。',
           lessonSlug: 'inner-loop',
           stepNumber: 2,
         },
@@ -337,11 +336,18 @@ export const CHEATSHEET_DATA: CheatsheetData = {
           tone: 'orange',
         },
         {
-          key: 'read 工具默认读取行数',
-          defaultValue: '2000 行',
+          key: 'read 工具文本上限',
+          defaultValue: '2000 行或 50 KiB',
           scope: 'pi-coding-agent (tools/read.ts)',
-          description: '大文件默认返回前 2000 行，支持 offset / limit 分页及图片附件（jpg/png/gif/webp）',
+          description: '按先达到的上限截断；支持 offset / limit 分页，以及 jpg、png、gif、webp、bmp 图片附件',
           tone: 'neutral',
+        },
+        {
+          key: 'cacheWarming',
+          defaultValue: '"idle"',
+          scope: 'pi-coding-agent (settings.md)',
+          description: '全局设置，符合条件的供应商可在两次运行间续温最多 30 分钟；也可设为 streaming 或 off',
+          tone: 'violet',
         },
         {
           key: 'Session 格式版本',
@@ -359,7 +365,7 @@ export const CHEATSHEET_DATA: CheatsheetData = {
         },
         {
           key: 'Node.js 运行时要求',
-          defaultValue: '>= 22.19',
+          defaultValue: '>= 22.19.0',
           scope: 'earendil-works/pi (README.md)',
           description: '安装时支持 --ignore-scripts，供应链硬化默认 save-exact 与 min-release-age=2',
           tone: 'neutral',
@@ -419,13 +425,13 @@ export const CHEATSHEET_DATA: CheatsheetData = {
         {
           mode: 'codemode',
           promptCost: '0 个前置工具 Schema',
-          behavior: '2026-09 默认模式：仅在系统提示列出一行服务器摘要，脚本运行时通过 searchTools() / describeTool() 按需发现并组合调用',
+          behavior: '默认模式，系统提示可含服务器摘要。可供 codemode 脚本发现；启用 tool_search 时也可按需声明',
           isDefault: true,
         },
         {
           mode: 'deferred',
           promptCost: '仅声明 1 个 tool_search',
-          behavior: '初始不展开服务器工具；模型调用 tool_search 命中后再为下一轮推理增量加载对应工具声明',
+          behavior: '初始不展开服务器工具；默认激活 tool_search，命中后为下一轮加载声明。启用 codemode 时也可由脚本调用',
         },
         {
           mode: 'direct',

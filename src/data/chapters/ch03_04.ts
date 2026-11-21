@@ -211,7 +211,7 @@ export const CHAPTERS_03_04: Chapter[] = [
             badge: 'SOLUTION',
             title: '用 CustomAgentMessages 声明合并实现零侵入扩展',
             paragraphs: [
-              '`pi-agent-core`（全部源码仅 6 个文件、2,548 行）选择了一个极其优雅的 TypeScript 方案：核心状态 `context.messages` 存储的是可扩展联合类型 `AgentMessage[]`，而非死板的 `Message[]`。内核暴露空接口 `CustomAgentMessages`，让上层应用通过 **Declaration Merging（声明合并）** 注入自己的领域消息。',
+              '`pi-agent-core`（全部源码仅 6 个文件、2,555 行）选择了一个极其优雅的 TypeScript 方案：核心状态 `context.messages` 存储的是可扩展联合类型 `AgentMessage[]`，而非死板的 `Message[]`。内核暴露空接口 `CustomAgentMessages`，让上层应用通过 **Declaration Merging（声明合并）** 注入自己的领域消息。',
               '`pi-coding-agent` 在 `messages.ts` 中无缝挂入 4 类一等公民消息：`bashExecution`（用户的 `!`/`!!` 命令输出）、`custom`（扩展自定义消息）、`branchSummary`（`/tree` 分支摘要）与 `compactionSummary`（非破坏性压缩摘要）。内核无需 import 任何一行上层代码，却能提供完备类型安全。',
             ],
             callout: {
@@ -227,7 +227,7 @@ export const CHAPTERS_03_04: Chapter[] = [
             sourceDrawer: {
               title: 'CustomAgentMessages 声明合并扩展',
               filePath: 'packages/coding-agent/src/core/messages.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/messages.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/messages.ts',
               language: 'ts',
               code: `// packages/agent/src/types.ts — 内核开放扩展槽
 export interface CustomAgentMessages {}
@@ -247,7 +247,7 @@ declare module "@earendil-works/pi-agent-core" {
               caption: 'TypeScript `declare module` 让 `pi-agent-core` 保持纯粹通用，同时赋予 `coding-agent` 强类型领域消息。',
             },
             kpis: [
-              { label: '核心源码规模', value: '6 文件 / 2,548 行', status: 'good' },
+              { label: '核心源码规模', value: '6 文件 / 2,555 行', status: 'good' },
               { label: '标准 LLM 消息', value: '4 类 Message', status: 'neutral' },
               { label: 'Coding 扩展消息', value: '+4 类 Custom', status: 'good' },
               { label: '内核反向依赖', value: '0 条', status: 'good' },
@@ -455,7 +455,7 @@ declare module "@earendil-works/pi-agent-core" {
             sourceDrawer: {
               title: 'coding-agent 的 convertToLlm 过滤与映射逻辑',
               filePath: 'packages/coding-agent/src/core/messages.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/messages.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/messages.ts',
               language: 'ts',
               code: `export function convertToLlm(messages: AgentMessage[]): Message[] {
   return messages
@@ -678,7 +678,7 @@ declare module "@earendil-works/pi-agent-core" {
             sourceDrawer: {
               title: 'streamAssistantResponse 完整 5 步管线',
               filePath: 'packages/agent/src/agent-loop.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `// packages/agent/src/agent-loop.ts (L395–425 核心管线)
 let messages = context.messages;
@@ -1139,8 +1139,8 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
             badge: 'SOLUTION',
             title: '纯事件驱动：Loop 只吐事实，一切渲染靠订阅',
             paragraphs: [
-              'Pi 的解法干净彻底：`agentLoop()` 与 `agentLoopContinue()` 不接收任何 UI 句柄，只返回一个标准的异步可迭代对象 `EventStream<AgentEvent, AgentMessage[]>`。循环内部只做一件事——在每个关键状态跃迁点调用 `stream.push(event)` 广播不可变事实。',
-              '外层的有状态封装 `Agent`（`packages/agent/src/agent.ts`）消费这条流，并通过 `agent.subscribe(listener)` 扇出给任意数量的订阅者。内核根本不知道对面坐着的是人类终端、IDE 的 RPC 进程，还是自动化单元测试。',
+              '循环在关键节点调用 `emit(event)`。独立使用低层 `agentLoop()` 或 `agentLoopContinue()` 时，包装器会把这些事件推入异步可迭代的 `EventStream<AgentEvent, AgentMessage[]>`。',
+              '有状态的 `Agent` 直接把自己的 `processEvents` 回调传给运行函数，更新本地状态，再通知通过 `agent.subscribe(listener)` 注册的订阅者。终端和 SDK 因此能共享事件契约。',
             ],
             callout: {
               kind: 'idea',
@@ -1165,14 +1165,14 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
             ],
             scene: {
               kind: 'iso-flow',
-              title: 'EventStream 架构：一源多端、彻底解耦',
+              title: 'Agent 事件如何流向多个订阅者',
               nodes: [
                 {
                   id: 'ev-loop',
                   x: 165,
                   y: 280,
                   label: 'runLoop()',
-                  sublabel: '只管状态机与 push(event)',
+                  sublabel: '在关键节点 emit(event)',
                   icon: 'loop',
                   tone: 'green',
                   size: 'md',
@@ -1182,8 +1182,8 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
                   id: 'ev-stream',
                   x: 425,
                   y: 280,
-                  label: 'EventStream',
-                  sublabel: 'AgentEvent 异步流',
+                  label: 'Agent.processEvents()',
+                  sublabel: '更新 Agent 状态',
                   icon: 'zap',
                   tone: 'violet',
                   size: 'md',
@@ -1233,8 +1233,8 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
                 },
               ],
               edges: [
-                { from: 'ev-loop', to: 'ev-stream', label: 'push', status: 'active', packetColor: '#4e7d34', packetCount: 2 },
-                { from: 'ev-stream', to: 'ev-sub', label: 'for await', status: 'active', packetColor: '#6f4ea3' },
+                { from: 'ev-loop', to: 'ev-stream', label: '事件回调', status: 'active', packetColor: '#4e7d34', packetCount: 2 },
+                { from: 'ev-stream', to: 'ev-sub', label: '按序通知', status: 'active', packetColor: '#6f4ea3' },
                 { from: 'ev-sub', to: 'c-tui', status: 'active', packetColor: '#3c6ea8' },
                 { from: 'ev-sub', to: 'c-rpc', status: 'active', packetColor: '#3c6ea8' },
                 { from: 'ev-sub', to: 'c-sdk', status: 'active', packetColor: '#b56c27' },
@@ -1265,7 +1265,7 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
             sourceDrawer: {
               title: '精确 10 种 AgentEvent 联合类型定义',
               filePath: 'packages/agent/src/types.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/types.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/types.ts',
               language: 'ts',
               code: `export type AgentEvent =
   // 1. Agent 级（整次 prompt/continue 运行）
@@ -1359,7 +1359,7 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
             sourceDrawer: {
               title: 'message_update 实时事件 JSON 载荷示例',
               filePath: 'packages/agent/src/types.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/types.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/types.ts',
               language: 'json',
               code: `{
   "type": "message_update",
@@ -1620,7 +1620,7 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
             callout: {
               kind: 'warn',
               title: '杜绝「事件已发、落盘未完」竞态',
-              text: '在 Print/CI 脚本或单元测试里写完 `await agent.prompt("..."); await agent.waitForIdle();` 后，你可以 100% 确信磁盘会话文件与所有扩展收尾钩子都已经彻底落稳。',
+              text: '在 Print/CI 脚本或单元测试里写完 `await agent.prompt("..."); await agent.waitForIdle();` 后，低层 `Agent` 会等待监听器返回的 Promise。自行启动的后台任务仍需由调用方等待。在 Coding Agent 的扩展层，用 `agent_settled` 判断重试、排队消息和收尾均处理结束。',
             },
             diffs: [
               { kind: 'add', text: '`Agent.subscribe()` 按序 `await` 异步监听器，消除回调乱序' },
@@ -1630,7 +1630,7 @@ const response = await streamFn(config.model, llmContext, { ...config, apiKey, s
             sourceDrawer: {
               title: 'Agent 异步监听与 waitForIdle 结算屏障',
               filePath: 'packages/agent/src/agent.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent.ts',
               language: 'ts',
               code: `// packages/agent/src/agent.ts — 异步订阅按序等待，确保终态落稳
 private async emit(e: AgentEvent): Promise<void> {
@@ -1969,7 +1969,7 @@ private async emit(e: AgentEvent): Promise<void> {
             badge: 'SOLUTION',
             title: 'createCodingTools：4 个默认核心 + 按需启用的只读/平台工具',
             paragraphs: [
-              '在 `packages/coding-agent/src/core/tools/index.ts` 中，默认激活的 `createCodingTools` 只有 **4 个正交原语**：`read`（支持文本与图片，默认 2,000 行上限并带 `offset`/`limit` 分页）、`bash`（同步 Shell，捕获 `stdout`/`stderr` 与可选 `timeout`）、`edit`（基于精确 `oldText` → `newText` 的外科手术式替换）和 `write`（新建或覆写文件并自动创建父目录）。',
+              '在 `packages/coding-agent/src/core/tools/index.ts` 中，默认激活的 `createCodingTools` 只有 **4 个正交原语**：`read`（支持文本与图片，文本按 2,000 行或 50 KiB 截断，先到者为准，并支持 `offset`/`limit`）、`bash`（同步 Shell，捕获 `stdout`/`stderr` 与可选 `timeout`）、`edit`（基于精确 `oldText` → `newText` 的外科手术式替换）和 `write`（新建或覆写文件并自动创建父目录）。',
               '如果你需要无副作用的代码审阅会话（例如 `--tools read,grep,find,ls`），Pi 还内置了默认关闭的 `grep`、`find`、`ls`（以及 Windows 下的 `powershell`）。在完整编程模式下，"Bash is all you need"——`rg`、`git`、`tmux` 全部直通原生命令行。',
             ],
             callout: {
@@ -1985,13 +1985,13 @@ private async emit(e: AgentEvent): Promise<void> {
             sourceDrawer: {
               title: '默认 4 核心工具与只读工具组定义',
               filePath: 'packages/coding-agent/src/core/tools/index.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/index.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/tools/index.ts',
               language: 'ts',
               code: `// packages/coding-agent/src/core/tools/index.ts
 // 默认编码会话仅装配 4 个正交工具：
 export function createCodingTools(cwd: string, options?: ToolsOptions) {
   return [
-    createReadTool(cwd, options?.read),   // 文本 + 图片，默认 2000 行，支持 offset/limit
+    createReadTool(cwd, options?.read),   // 文本 + 图片，文本上限 2000 行或 50 KiB，支持 offset/limit
     createBashTool(cwd, options?.bash),   // 同步 Shell，stdout/stderr + 可选 timeout
     createEditTool(cwd, options?.edit),   // 精确 oldText -> newText 局部修改
     createWriteTool(cwd, options?.write), // 新建/覆写 + 自动 mkdir -p
@@ -2234,7 +2234,7 @@ export function createReadOnlyTools(cwd: string) {
             sourceDrawer: {
               title: '单工具执行、异常兜底与 afterToolCall 覆写',
               filePath: 'packages/agent/src/agent-loop.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `// packages/agent/src/agent-loop.ts (工具执行与后处理核心片段)
 const startedAt = performance.now();
@@ -2390,7 +2390,7 @@ emit({ type: "tool_execution_end", toolCallId: toolCall.id, toolName: toolCall.n
             badge: 'SOLUTION',
             title: 'Pi 默认 parallel 双序引擎：完成序播事件，源码序写历史！',
             paragraphs: [
-              'Pi 的工具编排默认采用 `toolExecution: "parallel"`（`packages/agent/src/agent.ts` L266），用一个堪称教科书级的 **三段式双序流水线** 完美化解速度与顺序的矛盾：',
+              'Pi 的工具编排默认采用 `toolExecution: "parallel"`（见 `packages/agent/src/agent.ts` 的构造函数），用一个堪称教科书级的 **三段式双序流水线** 完美化解速度与顺序的矛盾：',
               '**阶段 1 预检串行**：按源码序 `#1 → #2 → #3` 依次跑完 `tool_execution_start`、Schema 校验与 `beforeToolCall`，确保有状态扩展看到确定次序；**阶段 2 `Promise.all` 并发执行**：全部放行工具同时启动，谁先完就 **立刻按完成序** 发射 `tool_execution_end`（`#2` 60ms 率先打绿勾，`#3` 120ms 紧随其后，`#1` 450ms 最后结束）；**阶段 3 源码序回填**：待 `Promise.all` 全部结算后，将 `ToolResultMessage` 与 `turn_end.toolResults` 严格按 **assistant 源码顺序 `#1 → #2 → #3`** 提交进上下文！',
             ],
             callout: {
@@ -2406,7 +2406,7 @@ emit({ type: "tool_execution_end", toolCallId: toolCall.id, toolName: toolCall.n
             sourceDrawer: {
               title: '默认 parallel 双序编排逻辑',
               filePath: 'packages/agent/src/agent-loop.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `// packages/agent/src/agent-loop.ts — parallel 模式三段式双序核心
 // 1) 预检串行：按 assistant 源码序依次发 start + 校验 + beforeToolCall
@@ -2925,7 +2925,7 @@ for (const item of settled) {
             sourceDrawer: {
               title: 'system-prompt.ts 的 XML 模块化分区结构',
               filePath: 'packages/coding-agent/src/core/system-prompt.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/system-prompt.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/system-prompt.ts',
               language: 'ts',
               code: `// packages/coding-agent/src/core/system-prompt.ts — 稳定可 Diff 的 XML 分区
 export interface SystemPromptSections {
@@ -3052,7 +3052,7 @@ export interface SystemPromptSections {
                   x: 805,
                   y: 415,
                   label: '尾部追加 Δ SystemMessage',
-                  sublabel: '前 70k 缓存 100% 原封不动',
+                  sublabel: '示例：前 70k 可复用',
                   icon: 'check',
                   tone: 'green',
                   size: 'md',
@@ -3074,10 +3074,10 @@ export interface SystemPromptSections {
             stepNumber: 4,
             shortLabel: '增量 SystemMessage',
             badge: 'SOLUTION',
-            title: '核心绝技：用尾部 Delta SystemMessage Patch 锁死 100% 历史缓存',
+            title: '尾部 Delta SystemMessage Patch 如何保留历史前缀',
             paragraphs: [
               '这就是 Pi 最具辨识度的工程绝技（PR `#9548`）：当系统提示分区或可用工具在会话中途发生变化时，Pi **一个字节也不动 Turn 0 的静态前缀**，而是把变化量打包成一条轻巧的 **增量 `SystemMessage` Patch**（仅包含发生变化的 `sections` 差异与 `toolsAdded` / `toolsRemoved`），直接 **追加到消息流尾部**！',
-              '从 LLM 供应商的 KV Cache 视角看，从 Token 0 到 Token 70,000 依然 **逐字节完全一致**，命中率稳稳钉在 100%；模型只需要为尾部那两百来个 Token 的增量补丁和 Turn 15 新消息支付一次新鲜 Prefill，便能立刻掌握新加载的工具与规则。',
+              '图例假设前 70,000 Token 完全一致。若供应商支持保留这些中途系统消息，且缓存仍有效，就能复用此前缀。协议转换、换模型或过期都可能影响实际命中。',
             ],
             callout: {
               kind: 'idea',
@@ -3086,13 +3086,13 @@ export interface SystemPromptSections {
             },
             diffs: [
               { kind: 'add', text: '尾部追加携带 `sections` 差异与 `toolsAdded`/`toolsRemoved` 的增量 `SystemMessage`' },
-              { kind: 'change', text: 'Turn 0..14 共 70,000 Tokens 保持逐字节不变，KV Cache 100% 命中' },
+              { kind: 'change', text: '示意中的历史前缀仍可复用，实际命中由模型和供应商决定' },
               { kind: 'add', text: '单轮新鲜 Prefill 开销从 74,000 Tokens 骤降至仅 6,000 Tokens' },
             ],
             sourceDrawer: {
               title: '增量 SystemMessage Patch 载荷示例（不改前缀）',
               filePath: 'packages/agent/src/agent-loop.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'json',
               code: `{
   "role": "system",
@@ -3109,12 +3109,12 @@ export interface SystemPromptSections {
   ],
   "toolsRemoved": ["write"]
 }`,
-              caption: '仅声明本轮新增/移除的工具与变更分区，追加于对话尾部，前 70k 缓存纹丝不动。',
+              caption: '仅声明本轮新增/移除的工具与变更分区，追加于对话尾部，附图以 70k 可复用前缀为示例。',
             },
             kpis: [
-              { label: '历史前缀命中', value: '70,000 / 70,000 (100%)', status: 'good' },
+              { label: '示例可复用前缀', value: '70,000 tok', status: 'good' },
               { label: 'Delta Patch 体积', value: '极小增量', status: 'good' },
-              { label: '本轮整体命中率', value: '92.1%', status: 'good' },
+              { label: '示例整体命中率', value: '92.1%', status: 'good' },
               { label: '工具热插拔能力', value: '即时生效', status: 'good' },
             ],
             legend: [
@@ -3147,7 +3147,7 @@ export interface SystemPromptSections {
                   cacheHitEnd: 70000,
                   segments: [
                     { id: 'd15-sys', label: 'Sys', tokens: 1200, tone: 'green', cached: true },
-                    { id: 'd15-hist', label: 'Turn 1..14 原封不动 (100% 命中)', tokens: 68800, tone: 'blue', cached: true },
+                    { id: 'd15-hist', label: 'Turn 1..14 仍可复用', tokens: 68800, tone: 'blue', cached: true },
                     { id: 'd15-patch', label: 'Δ Patch', tokens: 2000, tone: 'violet', delta: true },
                     { id: 'd15-msg', label: 'Turn 15', tokens: 4000, tone: 'orange' },
                   ],
@@ -3266,7 +3266,7 @@ export interface SystemPromptSections {
             badge: 'TECHNIQUE',
             title: '收支双控：cache-warmer.ts 保温续命 + 一次性摘要禁用写缓存',
             paragraphs: [
-              '前缀稳住了，缓存经济学还有最后两道精细账。第一道是 **过期浪费**：主流云端 KV Cache 通常有较短的 TTL（例如 5 分钟）。如果你停下来认真读 6 分钟代码再继续提问，刚刚完美的 70k 热缓存已经自然过期！为此 Pi 配备了 `cache-warmer.ts`（在会话账本中记为 `UsageEntry` `kind: "cache_warm"`），按需维持活跃会话的缓存热度。',
+              '当供应商的前缀缓存快过期时，`cache-warmer.ts` 会判断续温是否划算。v1.5.2 默认 `cacheWarming: "idle"`，在符合条件的供应商上可在两次运行间续温最多 30 分钟。可改为 `streaming`（仅在运行中续温）或 `off`；预热费用单独记为 `UsageEntry` 的 `kind: "cache_warm"`。',
               '第二道恰恰相反——**别为一次性调用付写缓存溢价**：供应商对“写入新缓存（Cache Creation）”通常会加收 25% 以上溢价。在做 **非破坏性压缩（Compaction）** 或 **分支摘要（Branch Summary）** 时，摘要 Prompt 只用一次、未来绝不会再作为前缀复用，因此 Pi 在摘要调用中 **显式关闭缓存写入**，把每一分钱都花在刀刃上。',
             ],
             callout: {
@@ -3281,7 +3281,7 @@ export interface SystemPromptSections {
             sourceDrawer: {
               title: '缓存保温记账与一次性摘要禁用写缓存策略',
               filePath: 'packages/coding-agent/src/core/compaction/compaction.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/compaction/compaction.ts',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/compaction/compaction.ts',
               language: 'ts',
               code: `// 1) 主会话保温（cache-warmer.ts）：独立记账，防止阅读代码期间 TTL 过期
 interface CacheWarmUsageEntry {
@@ -3507,7 +3507,7 @@ const summaryResponse = await completeSummary({
             title: '复盘：Pi Prompt Cache 四柱稳定术',
             paragraphs: [
               'Prompt Caching 绝不是“加一个参数开关”就能自动享受到的免费午餐，而是一套贯穿系统提示词设计、消息管线与后台任务的系统工程。',
-              'Pi 用四根支柱把它打造成本能：**超短静态 XML 前缀** 夯实锚点、**`diffSystemPromptSections` + `declareToolChanges` 尾部增量 Patch** 保护历史、**`cache-warmer.ts`** 防止阅读间歇过期、**摘要任务禁用写缓存** 杜绝无谓溢价。四柱合力，才换来 90%+ 的稳态命中率。',
+              'Pi 用四根支柱把它打造成本能：**超短静态 XML 前缀** 夯实锚点、**`diffSystemPromptSections` + `declareToolChanges` 尾部增量 Patch** 保护历史、**`cache-warmer.ts`** 防止阅读间歇过期、**摘要任务禁用写缓存** 杜绝无谓溢价。图中的命中率用于说明前缀失效和复用的差别，实际结果以供应商回传的用量为准。',
             ],
             callout: {
               kind: 'idea',
@@ -3526,8 +3526,8 @@ const summaryResponse = await completeSummary({
                 because: '让前序数万 Tokens 逐字节保持不变，仅对尾部小增量支付新鲜 Prefill。',
               },
               {
-                question: '人类停下来读代码超过 5 分钟导致缓存自然过期怎么办？',
-                decision: '启用 `cache-warmer.ts` 保活并在会话账本独立记为 `kind: "cache_warm"`',
+                question: '在两次运行间如何减少合适的缓存过期？',
+                decision: '全局 `cacheWarming` 默认 `idle`，符合条件时最多续温 30 分钟，独立记为 `cache_warm`',
                 because: '以极小保活成本锁住长会话热缓存，恢复交互立刻秒回。',
               },
               {

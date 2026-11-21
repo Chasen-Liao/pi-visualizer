@@ -151,8 +151,10 @@ function renderTrack(
   const usageColor =
     usedPct >= 90 ? 'var(--kpi-bad)' : usedPct >= 75 ? 'var(--kpi-warn)' : 'var(--kpi-good)';
 
-  const hasTopBracket = Boolean(track.cacheHitEnd && track.cacheHitEnd > 0);
-  const headerY = hasTopBracket ? barY - 30 : barY - 14;
+  const hasTopBracket =
+    Boolean(track.cacheHitEnd && track.cacheHitEnd > 0) ||
+    Boolean(track.cutPointPos && track.cutPointPos > 0);
+  const headerY = hasTopBracket ? barY - 34 : barY - 14;
 
   // Compute reserve & keepRecent pixels
   const reservePx =
@@ -251,7 +253,8 @@ function renderTrack(
         const midX = barX + bracketW / 2;
         const tag = 'KV Cache 命中区';
         const tagW = measureTextPx(tag, 9.2) + 14;
-        const tagX = Math.max(barX + 4, Math.min(barX + barW - tagW - 4, midX - tagW / 2));
+        const maxRightBeforeBudget = barX + barW - budgetPillW - tagW - 10;
+        const tagX = Math.max(barX + 4, Math.min(maxRightBeforeBudget, midX - tagW / 2));
         return (
           <g>
             <path
@@ -287,14 +290,28 @@ function renderTrack(
         );
       })()}
 
-      {/* Outer Track Shadow */}
+      {/* Extruded tray and shadow under the proportional token segments. */}
       <rect
-        x={barX + 2}
-        y={barY + 3.5}
+        x={barX + 8}
+        y={barY + 12}
         width={barW}
         height={barH}
         rx={9}
         fill="var(--stage-shadow-ambient)"
+      />
+      <path
+        d={`M ${barX + 9} ${barY + barH} H ${barX + barW - 9} L ${barX + barW - 3} ${barY + barH + 9} H ${barX + 15} Z`}
+        fill="var(--line-strong)"
+        stroke="var(--edge)"
+        strokeWidth={1.4}
+        strokeLinejoin="round"
+      />
+      <path
+        d={`M ${barX + barW - 9} ${barY} Q ${barX + barW} ${barY} ${barX + barW} ${barY + 9} L ${barX + barW + 6} ${barY + 18} V ${barY + barH} Q ${barX + barW + 6} ${barY + barH + 9} ${barX + barW - 3} ${barY + barH + 9} L ${barX + barW - 9} ${barY + barH} Z`}
+        fill="var(--line)"
+        stroke="var(--edge)"
+        strokeWidth={1.4}
+        strokeLinejoin="round"
       />
 
       {/* Outer Track Background */}
@@ -330,7 +347,7 @@ function renderTrack(
               strokeWidth={1.5}
               strokeDasharray="4 3"
             />
-            {reservePx >= 46 && (
+            {reservePx >= 46 && cursorX <= barX + barW - reservePx + 6 && (
               <text
                 x={barX + barW - reservePx / 2}
                 y={barY + barH / 2 + 3.5}
@@ -522,8 +539,8 @@ function renderTrack(
 
       {/* Atomic Pair Brackets below bar (e.g. toolCall + toolResult 不可拆散) */}
       {Array.from(atomicGroups.entries()).map(([groupName, span], gIdx) => {
-        const y0 = barY + barH + 3;
-        const y1 = y0 + 8;
+        const y0 = barY + barH + 11;
+        const y1 = y0 + 7;
         const midX = (span.minX + span.maxX) / 2;
         const hasChinese = /[\u4e00-\u9fa5]/.test(groupName);
         const label = hasChinese ? `不可拆散 · ${groupName}` : `不可拆散 (${groupName})`;
@@ -567,8 +584,8 @@ function renderTrack(
       {/* KeepRecent bottom bracket when no atomic group sits right underneath */}
       {keepRecentX !== undefined && atomicGroups.size === 0 && (() => {
         const endX = Math.max(keepRecentX + 24, Math.min(cursorX, barX + barW - reservePx));
-        const y0 = barY + barH + 3;
-        const y1 = y0 + 8;
+        const y0 = barY + barH + 11;
+        const y1 = y0 + 7;
         const midX = (keepRecentX + endX) / 2;
         const tag = 'keepRecent 保留窗口';
         const tw = measureTextPx(tag, 9) + 14;
@@ -613,13 +630,14 @@ function renderTrack(
         const cutLabel = track.cutPointLabel ?? 'Cut Point';
         const pillText = `✂ ${cutLabel}`;
         const pillW = Math.max(76, measureTextPx(pillText, 9.4) + 16);
-        const px = Math.max(barX, Math.min(barX + barW - pillW, cx - pillW / 2));
+        const maxRightBeforeBudget = barX + barW - budgetPillW - pillW - 10;
+        const px = Math.max(barX, Math.min(maxRightBeforeBudget, cx - pillW / 2));
 
         // Avoid colliding with KV Cache Hit pill when both appear near each other
         const cacheTagMidX = barX + cacheEndPx / 2;
         const overlapsCachePill =
-          cacheEndPx > 12 && Math.abs(cx - cacheTagMidX) < pillW / 2 + 56;
-        const pillY = overlapsCachePill ? barY + barH + 10 : barY - 30;
+          cacheEndPx > 0 && Math.abs(px + pillW / 2 - cacheTagMidX) < pillW / 2 + 56;
+        const pillY = overlapsCachePill ? barY + barH + 11 : barY - 23;
 
         return (
           <g>
@@ -669,41 +687,60 @@ function renderTrack(
 function renderCalloutBadges(badges: TokenCalloutBadge[], y: number) {
   if (badges.length === 0) return null;
   const maxTotalW = 912;
-  const gap = 12;
-  const itemW = Math.min(220, Math.max(130, (maxTotalW - gap * (badges.length - 1)) / badges.length));
-  const rowW = badges.length * itemW + gap * (badges.length - 1);
-  const startX = 44 + (maxTotalW - rowW) / 2;
+  const gap = 14;
+  const safeY = Math.min(502, y);
+  const cardH = 40;
+
+  const naturalWidths = badges.map((b) =>
+    Math.ceil(
+      Math.max(
+        160,
+        Math.min(
+          340,
+          Math.max(measureTextPx(b.label, 9.5), measureTextPx(b.value, 12.2)) + 30
+        )
+      )
+    )
+  );
+  const totalNatural =
+    naturalWidths.reduce((acc, w) => acc + w, 0) + gap * (badges.length - 1);
+  const scale = totalNatural > maxTotalW ? (maxTotalW - gap * (badges.length - 1)) / (totalNatural - gap * (badges.length - 1)) : 1;
+  const widths = naturalWidths.map((w) => Math.floor(w * scale));
+  const rowW = widths.reduce((acc, w) => acc + w, 0) + gap * (badges.length - 1);
+  let cursorX = 44 + Math.max(0, (maxTotalW - rowW) / 2);
 
   return (
-    <g transform={`translate(0, ${y})`}>
+    <g transform={`translate(0, ${safeY})`}>
       {badges.map((badge, idx) => {
-        const bx = startX + idx * (itemW + gap);
+        const itemW = widths[idx];
+        const bx = cursorX;
+        cursorX += itemW + gap;
         const st = BADGE_STYLE[badge.tone];
         return (
-          <g
-            key={`cb-${idx}`}
-            className="stage-node-enter"
-            style={{ animationDelay: `${160 + idx * 45}ms` }}
-            transform={`translate(${bx}, 0)`}
-          >
-            <rect x={2} y={2.5} width={itemW} height={42} rx={8} fill="var(--stage-shadow-ambient)" />
-            <rect
-              x={0}
-              y={0}
-              width={itemW}
-              height={42}
-              rx={8}
-              fill={st.bg}
-              stroke="var(--edge)"
-              strokeWidth={1.3}
-            />
-            <rect x={1} y={1} width={5} height={40} rx={2.5} fill={st.bar} />
-            <text x={14} y={16} fontSize={9.5} fontWeight={700} fill="var(--ink-2)">
-              {truncateText(badge.label, itemW - 22, 9.5)}
-            </text>
-            <text x={14} y={33} fontSize={12.6} fontWeight={800} fill="var(--ink)">
-              {truncateText(badge.value, itemW - 22, 12.6)}
-            </text>
+          <g key={`cb-${idx}`} transform={`translate(${bx}, 0)`}>
+            <g
+              className="stage-node-enter"
+              style={{ animationDelay: `${160 + idx * 45}ms` }}
+            >
+              <rect x={2} y={2.5} width={itemW} height={cardH} rx={8} fill="var(--stage-shadow-ambient)" />
+              <rect
+                x={0}
+                y={0}
+                width={itemW}
+                height={cardH}
+                rx={8}
+                fill={st.bg}
+                stroke="var(--edge)"
+                strokeWidth={1.3}
+              />
+              <rect x={1} y={1} width={5} height={cardH - 2} rx={2.5} fill={st.bar} />
+              <text x={14} y={15} fontSize={9.4} fontWeight={700} fill="var(--ink-2)">
+                {truncateText(badge.label, itemW - 22, 9.4)}
+              </text>
+              <text x={14} y={31.5} fontSize={12.2} fontWeight={800} fill="var(--ink)">
+                {truncateText(badge.value, itemW - 22, 12.2)}
+              </text>
+            </g>
           </g>
         );
       })}
@@ -738,7 +775,8 @@ function renderMultiSeriesChart(chart: TokenMiniChart, y: number, uid: string) {
   const firstGradId = `${uid}-mc-grad`;
 
   return (
-    <g className="stage-node-enter" style={{ animationDelay: '210ms' }} transform={`translate(${x}, ${y})`}>
+    <g transform={`translate(${x}, ${y})`}>
+      <g className="stage-node-enter" style={{ animationDelay: '210ms' }}>
       <defs>
         {chart.series[0] && (
           <linearGradient id={firstGradId} x1="0" y1="0" x2="0" y2="1">
@@ -951,6 +989,7 @@ function renderMultiSeriesChart(chart: TokenMiniChart, y: number, uid: string) {
       >
         {chart.yLabel}
       </text>
+      </g>
     </g>
   );
 }

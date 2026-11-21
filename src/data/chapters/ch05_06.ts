@@ -2,10 +2,10 @@ import type { Chapter } from '../../types/lesson';
 
 // ============================================================================
 // Chapters 05 & 06 — JSONL 会话树、非破坏压缩、扩展生态与 Codemode MCP
-// Primary-source grounded in earendil-works/pi (main branch)
+// Primary-source grounded in earendil-works/pi (v1.5.2)
 // ============================================================================
 
-const PI_BLOB = 'https://github.com/earendil-works/pi/blob/main';
+const PI_BLOB = 'https://github.com/earendil-works/pi/blob/v1.5.2';
 
 export const CHAPTERS_05_06: Chapter[] = [
   // ==========================================================================
@@ -1175,12 +1175,12 @@ export const CHAPTERS_05_06: Chapter[] = [
             title: '精准触发条件：reserveTokens 与 keepRecentTokens',
             paragraphs: [
               'Pi 在 `DEFAULT_COMPACTION_SETTINGS` 中定义了两个极其克制的默认常量：`reserveTokens = 16384` 与 `keepRecentTokens = 20000`。当 `contextTokens > contextWindow - reserveTokens` 时，自动压缩被唤醒。',
-              '除了自动阈值触发外，用户也可随时运行 `/compact [自定义聚焦指令]` 手动收口；若不幸遭遇提供方溢出或 `stopReason === "length"`，Pi 也会走溢出恢复路径自动补救。',
+              '用户可用 `/compact [自定义聚焦指令]` 手动压缩。供应商报告上下文溢出，或最终响应因 `length` 提前结束时，Pi 可以做一次压缩后重试。如果截断的响应带有工具调用，Pi 为它们合成失败结果，再走普通工具与队列调度。',
             ],
             callout: {
               kind: 'tip',
               title: '双常量各司其职',
-              text: '`reserveTokens`（`16384`）决定**什么时候压缩**（为下一轮输出留足余量）；`keepRecentTokens`（`20000`）决定**压缩后原地保留多少近期原始对话**。',
+              text: '`reserveTokens`（`16384`）决定何时触发压缩，摘要请求的输出预算另行计算。`keepRecentTokens`（`20000`）用于估算保留多少近期消息，实际切点还受消息边界约束。两项都可按模型覆盖。',
             },
             diffs: [
               { kind: 'add', text: '触发判据：`contextTokens > contextWindow - reserveTokens`（默认 `16384`）' },
@@ -3046,7 +3046,7 @@ export default function (pi: ExtensionAPI) {
             title: 'pi.on 生命周期事件与 ExtensionContext 深度控制',
             paragraphs: [
               '通过 `pi.on(event, handler)`，扩展可以监听贯穿全链路的事件：Startup、Resource、Session、Agent、Context、Provider、Model、Tool（`tool_call` / `tool_result`）、Input 与 UserBash。',
-              '每个回调都会收到强大的 **`ExtensionContext`（`ctx`）**，能直接调用 `ctx.ui` 弹出交互组件、读写 `ctx.sessionManager`、触发 `ctx.compact()`、`ctx.navigateTree()`、`ctx.fork()`，或用 `pi.setActiveTools()` 与 `pi.appendEntry()` 精准调控运行态——这就是为什么 Pi 内核不需要内置 Plan Mode 或权限弹窗！',
+              '每个回调都会收到强大的 **`ExtensionContext`（`ctx`）**，能直接调用 `ctx.ui` 弹出交互组件、通过只读的 `ctx.sessionManager` 查看会话，或用 `ctx.compact()` 触发压缩。切枝与派生会话的 `navigateTree()` / `fork()` 属于命令处理器的 `ExtensionCommandContext`。扩展可通过 `pi.setActiveTools()` 和 `pi.appendEntry()` 调整工具及追加条目——这就是为什么 Pi 内核不需要内置 Plan Mode 或权限弹窗！',
             ],
             callout: {
               kind: 'idea',
@@ -3055,7 +3055,7 @@ export default function (pi: ExtensionAPI) {
             },
             diffs: [
               { kind: 'add', text: '`pi.on` 覆盖从 Startup/Session 到 Context/Tool/Input 的完整生命周期' },
-              { kind: 'add', text: '`ExtensionContext` 提供 `ctx.ui`、`ctx.sessionManager`、`ctx.compact`、`ctx.navigateTree`、`ctx.fork`' },
+              { kind: 'add', text: '`ExtensionContext` 提供 UI、只读会话视图和压缩入口，命令上下文另提供切枝和 fork' },
             ],
             kpis: [
               { label: '事件域', value: '10 大阶段', status: 'good' },
@@ -3118,7 +3118,7 @@ export default function (pi: ExtensionAPI) {
                   x: 560,
                   y: 385,
                   label: 'ctx.sessionManager',
-                  sublabel: 'compact / navigateTree / fork',
+                  sublabel: 'compact · 命令可切枝／fork',
                   icon: 'git-branch',
                   tone: 'green',
                   size: 'md',
@@ -3943,29 +3943,29 @@ description: 安全编写与验证 PostgreSQL 零停机迁移脚本；涉及表�
             title: '一网打尽：Pi 原生 MCP 的 4 种暴露模式',
             paragraphs: [
               '不同 MCP 工具的使用频次与角色各不相同，Pi 为此提供了 **4 种精准的暴露模式（Exposure Modes）**，把控制权完全交回给开发者与扩展作者：',
-              '**`codemode`（默认）**在 Prompt 中注入 **0** 条 MCP 声明，由脚本通过 `searchTools()` / `describeTool()` 动态发现；**`deferred`** 仅暴露轻量 `tool_search` 按需延迟拉取；**`direct`** 传统全量注入适合极少高频工具；**`hidden`** 对模型完全隐藏，仅供 Extension 通过编程接口静默调用。',
+              '**`codemode`（默认）**不预先声明每个 MCP 工具；**`deferred`** 默认激活 `tool_search`。只要两种入口已启用，这两类工具都能被脚本调用，也都能被搜索后声明给后续模型请求。**`direct`** 立即声明；**`hidden`** 保留注册但不可达，可用 `toolExposure` 改写个别工具的暴露模式。',
             ],
             callout: {
               kind: 'tip',
               title: '一表选型口诀',
-              text: '大而全的 MCP（如 Playwright/GitHub）一律默认 `codemode`；偶尔单点工具调用可用 `deferred`；只有 1–2 个每轮必用的小工具才开 `direct`；内部鉴权/埋点工具设为 `hidden`。',
+              text: '大而全的 MCP（如 Playwright/GitHub）一律默认 `codemode`；偶尔单点工具调用可用 `deferred`；只有 1–2 个每轮必用的小工具才开 `direct`；不开放的工具设为 `hidden`。',
             },
             diffs: [
               { kind: 'add', text: '`codemode`（默认）：0 MCP Prompt 声明，脚本可编程发现与串联' },
               { kind: 'add', text: '`deferred`：经 `tool_search` 延迟拉取单个工具定义' },
-              { kind: 'add', text: '`direct` / `hidden`：兼顾高频直连与扩展私有调用场景' },
+              { kind: 'add', text: '`direct` / `hidden`：一个立即声明，另一个保留注册但不可达' },
             ],
             kpis: [
               { label: '默认模式', value: 'codemode (0 声明)', status: 'good' },
               { label: '延迟发现', value: 'deferred', status: 'good' },
               { label: '传统直连', value: 'direct', status: 'warn' },
-              { label: '仅扩展可见', value: 'hidden', status: 'neutral' },
+              { label: '保留但不可达', value: 'hidden', status: 'neutral' },
             ],
             legend: [
               { color: '#5a9a44', label: 'codemode (默认推荐)' },
               { color: '#4b83c3', label: 'deferred (延迟检索)' },
               { color: '#d98736', label: 'direct (全量直注)' },
-              { color: '#8a8177', label: 'hidden (仅 Extension 可调)' },
+              { color: '#8a8177', label: 'hidden（不可达）' },
             ],
             scene: {
               kind: 'iso-flow',
@@ -4020,7 +4020,7 @@ description: 安全编写与验证 PostgreSQL 零停机迁移脚本；涉及表�
                   x: 845,
                   y: 280,
                   label: '4. hidden',
-                  sublabel: '仅 Extension 可调用',
+                  sublabel: '注册但不可达',
                   icon: 'shield',
                   tone: 'neutral',
                   size: 'md',
@@ -4036,11 +4036,11 @@ description: 安全编写与验证 PostgreSQL 零停机迁移脚本；涉及表�
                   size: 'lg',
                 },
                 {
-                  id: 'target-ext',
+                  id: 'unavailable',
                   x: 845,
                   y: 450,
-                  label: 'Extension 代码',
-                  sublabel: '编程式静默调用',
+                  label: '不进入调用面',
+                  sublabel: '可用 toolExposure 覆盖',
                   icon: 'wrench',
                   tone: 'neutral',
                   size: 'md',
@@ -4054,7 +4054,7 @@ description: 安全编写与验证 PostgreSQL 零停机迁移脚本；涉及表�
                 { from: 'm-code', to: 'target-llm', label: '0 声明', packetColor: '#5a9a44', packetCount: 2 },
                 { from: 'm-def', to: 'target-llm', label: '按需', packetColor: '#4b83c3', packetCount: 1 },
                 { from: 'm-dir', to: 'target-llm', label: '全量', packetColor: '#d98736', packetCount: 1 },
-                { from: 'm-hid', to: 'target-ext', label: '仅代码', packetColor: '#8a8177', packetCount: 1, dashed: true },
+                { from: 'm-hid', to: 'unavailable', label: '不可达', packetColor: '#8a8177', packetCount: 1, dashed: true },
               ],
             },
           },
@@ -4179,10 +4179,10 @@ return {
             stepNumber: 6,
             shortLabel: '零税对比',
             badge: 'INSIGHT',
-            title: 'Token 账本实测：Direct vs Deferred vs Codemode',
+            title: 'Token 预算示例：Direct、Deferred 与 Codemode',
             paragraphs: [
               '把同一套 **47 个浏览器 MCP 工具（Playwright 21 + DevTools 26）**放进 3 种模式同台测算，差距一目了然：`direct` 起步直接吞掉 `32,700` Token；`deferred` 降到 `3,000` Token；而默认 **`codemode`** 仅需轻量脚本入口，MCP 工具声明严格为 **0**，总启动上下文仅 `1,500` Token（比 `direct` 暴降 **95.4%**）！',
-              '更重要的是，即使后台增删几十个 MCP Server，`codemode` 模式下的静态系统提示词纹丝不动，**Prompt KV Cache 命中率始终稳如磐石**。',
+              '这些数字是图解采用的预算假设。Pi 的系统提示中仍有服务器摘要和入口定义；当摘要变化时，Pi 追加更新以保留已有前缀。实际 Token 开销与缓存命中依赖模型、工具和服务器配置。',
             ],
             callout: {
               kind: 'idea',
@@ -4192,7 +4192,7 @@ return {
             diffs: [
               { kind: 'remove', text: '`direct` 模式：`32,700` Token 起跑，工具一变就击穿前缀缓存' },
               { kind: 'change', text: '`deferred` 模式：`3,000` Token（`tool_search` + 按需拉取 2 个定义）' },
-              { kind: 'add', text: '`codemode` 默认模式：`1,500` Token，**0** 条 MCP 声明，前缀缓存 100% 稳定' },
+              { kind: 'add', text: '`codemode` 默认模式：`1,500` Token，**0** 条 MCP 声明，无需预先声明逐工具 Schema' },
             ],
             kpis: [
               { label: 'direct 起跑', value: '32,700 tok', status: 'bad' },
@@ -4207,7 +4207,7 @@ return {
             ],
             scene: {
               kind: 'token-slices',
-              title: '首轮启动上下文对比（60k 放大视图 · 挂载 47 个 MCP 工具）',
+              title: '首轮 Token 预算示例（60k 放大视图 · 47 个 MCP 工具）',
               tracks: [
                 {
                   id: 'cmp-direct',
@@ -4237,7 +4237,7 @@ return {
                 {
                   id: 'cmp-codemode',
                   title: 'codemode 默认模式：0 条 MCP 工具声明进入 Prompt',
-                  subtitle: '1,500 tok（-95.4%），后台增删 Server 前缀缓存 100% 稳定',
+                  subtitle: '1,500 tok（-95.4%），后台增删 Server 无需预先声明逐工具 Schema',
                   totalBudget: 60000,
                   usedTokens: 1500,
                   cacheHitEnd: 1500,
@@ -4260,7 +4260,7 @@ return {
             badge: 'SOLUTION',
             title: '全课总收官：Pi Agent Loop 端到端架构全景',
             paragraphs: [
-              '现在，让我们把 6 大章节、14 节课的全部模块拼回一张完整的运行蓝图：从**用户输入与双队列（`steer` / `followUp`）**出发，进入仅 6 文件 2,548 行的 **`pi-agent-core` 双层主循环**，流经**三段消息管线与增量 `SystemMessage` 缓存稳定层**；',
+              '现在，让我们把 6 大章节、14 节课的全部模块拼回一张完整的运行蓝图：从**用户输入与双队列（`steer` / `followUp`）**出发，进入仅 6 文件 2,555 行的 **`pi-agent-core` 双层主循环**，流经**三段消息管线与增量 `SystemMessage` 缓存稳定层**；',
               '工具端以**极简 4 工具 + `Promise.all` 并发源码序回填**高速执行，状态端落入**仅追加 JSONL v3 会话树 + 非破坏 Compaction / 分支摘要**，外围再由 **Extensions、Skills 与 Codemode MCP** 渐进式武装——这就是 `earendil-works/pi` 令人着迷的极简工程美学。',
             ],
             callout: {
@@ -4273,7 +4273,7 @@ return {
               { kind: 'add', text: '下行闭环：4 工具并发引擎 → JSONL v3 树与无损压缩 → 渐进式生态扩展' },
             ],
             kpis: [
-              { label: '核心循环', value: '6 文件 2,548 行', status: 'good' },
+              { label: '核心循环', value: '6 文件 2,555 行', status: 'good' },
               { label: '内置工具', value: '4 个核心工具', status: 'good' },
               { label: '持久化', value: 'JSONL v3 树', status: 'good' },
               { label: 'MCP 默认税', value: '0 条声明', status: 'good' },
@@ -4409,7 +4409,7 @@ return {
               },
               {
                 question: 'MCP 4 种暴露模式各自适合什么场景？',
-                decision: '`codemode` 默认 / `deferred` 延迟 / `direct` 高频 / `hidden` 扩展私有',
+                decision: '`codemode` 默认 / `deferred` 延迟 / `direct` 高频 / `hidden` 注册但不可达',
                 because: '按调用频次与可见性分层暴露，把上下文预算和 KV Cache 稳定性牢牢握在手里。',
               },
               {

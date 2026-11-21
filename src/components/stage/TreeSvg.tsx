@@ -110,10 +110,10 @@ interface TreeNodeLayout {
 }
 
 function renderFilePreview(preview: TreeFilePreview, clipId: string) {
-  const x = 688;
-  const y = 32;
-  const w = 296;
-  const h = 496;
+  const x = 648;
+  const y = 30;
+  const w = 334;
+  const h = 500;
   const headerH = 38;
   const bodyPadY = 14;
   const availH = h - headerH - bodyPadY * 2 - 18;
@@ -123,7 +123,8 @@ function renderFilePreview(preview: TreeFilePreview, clipId: string) {
   const hiddenCount = Math.max(0, preview.lines.length - visibleLines.length);
 
   return (
-    <g className="stage-node-enter" style={{ animationDelay: '160ms' }} transform={`translate(${x}, ${y})`}>
+    <g transform={`translate(${x}, ${y})`}>
+      <g className="stage-node-enter" style={{ animationDelay: '160ms' }}>
       <defs>
         <clipPath id={clipId}>
           <rect x={0} y={headerH} width={w} height={h - headerH} rx={0} />
@@ -242,6 +243,7 @@ function renderFilePreview(preview: TreeFilePreview, clipId: string) {
           </text>
         </g>
       </g>
+      </g>
     </g>
   );
 }
@@ -255,33 +257,33 @@ function renderAnnotation(ann: TreeAnnotation, idx: number, maxX: number) {
   const cy = Math.max(h / 2 + 10, Math.min(548 - h / 2, ann.y));
 
   return (
-    <g
-      key={`ann-${idx}`}
-      className="stage-node-enter"
-      style={{ animationDelay: `${200 + idx * 45}ms` }}
-      transform={`translate(${cx - w / 2}, ${cy - h / 2})`}
-    >
-      <rect x={1.5} y={2} width={w} height={h} rx={7} fill="var(--stage-shadow-ambient)" />
-      <rect
-        x={0}
-        y={0}
-        width={w}
-        height={h}
-        rx={7}
-        fill={tone.bg}
-        stroke={tone.stroke}
-        strokeWidth={1.3}
-      />
-      <text
-        x={w / 2}
-        y={15.6}
-        textAnchor="middle"
-        fontSize={10.1}
-        fontWeight={800}
-        fill="var(--ink)"
+    <g key={`ann-${idx}`} transform={`translate(${cx - w / 2}, ${cy - h / 2})`}>
+      <g
+        className="stage-node-enter"
+        style={{ animationDelay: `${200 + idx * 45}ms` }}
       >
-        {text}
-      </text>
+        <rect x={1.5} y={2} width={w} height={h} rx={7} fill="var(--stage-shadow-ambient)" />
+        <rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          rx={7}
+          fill={tone.bg}
+          stroke={tone.stroke}
+          strokeWidth={1.3}
+        />
+        <text
+          x={w / 2}
+          y={15.6}
+          textAnchor="middle"
+          fontSize={10.1}
+          fontWeight={800}
+          fill="var(--ink)"
+        >
+          {text}
+        </text>
+      </g>
     </g>
   );
 }
@@ -295,16 +297,20 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
   const fileClipId = `${uid}-file-clip`;
 
   const hasPreview = Boolean(scene.filePreview);
-  const treeMaxRight = hasPreview ? 672 : 982;
+  const treeMaxRight = hasPreview ? 632 : 982;
+  const hasOutwardSummaryEdge = (scene.edges ?? []).some(
+    (e) => e.kind === 'lca_summary' || e.kind === 'compaction_link'
+  );
+  const nodeSafeMaxRight = hasPreview ? (hasOutwardSummaryEdge ? 548 : 596) : 982;
 
   // Measure cards and compute safe coordinates so tree never overlaps right-hand JSONL preview
   const rawLayouts: TreeNodeLayout[] = scene.nodes.map((node) => {
     const labelW = measureTextPx(node.label, 11.4);
     const subW = node.sublabel ? measureTextPx(node.sublabel, 9.4) : 0;
-    const minCardW = hasPreview ? 132 : 144;
-    const maxCardW = hasPreview ? 168 : 196;
-    const w = Math.round(Math.max(minCardW, Math.min(maxCardW, Math.max(labelW, subW) + 28)));
-    const h = node.sublabel ? 60 : 48;
+    const minCardW = hasPreview ? 128 : 144;
+    const maxCardW = hasPreview ? 160 : 196;
+    const w = Math.round(Math.max(minCardW, Math.min(maxCardW, Math.max(labelW, subW) + 26)));
+    const h = node.sublabel ? 58 : 46;
     const availW = w - 22;
     return {
       node,
@@ -317,24 +323,34 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
     };
   });
 
-  // Gentle auto-fit into [18..treeMaxRight] only if any node overflows
+  // Auto-fit node X coordinates into the left safe zone [20..nodeSafeMaxRight] when filePreview is present
   if (rawLayouts.length > 0) {
     const minLeft = Math.min(...rawLayouts.map((l) => l.x - l.w / 2));
     const maxRight = Math.max(...rawLayouts.map((l) => l.x + l.w / 2));
-    const availSpan = treeMaxRight - 18;
+    const leftBound = 20;
+    const availSpan = nodeSafeMaxRight - leftBound;
     const currentSpan = maxRight - minLeft;
 
-    if (maxRight > treeMaxRight || minLeft < 18) {
+    if (maxRight > nodeSafeMaxRight || minLeft < leftBound) {
       if (currentSpan > availSpan && currentSpan > 1) {
-        const scale = availSpan / currentSpan;
+        const minCenter = Math.min(...rawLayouts.map((l) => l.x));
+        const maxCenter = Math.max(...rawLayouts.map((l) => l.x));
+        const maxHalfW = Math.max(...rawLayouts.map((l) => l.w / 2));
+        const targetMinC = leftBound + maxHalfW;
+        const targetMaxC = Math.max(targetMinC + 10, nodeSafeMaxRight - maxHalfW);
+        const cSpan = Math.max(1, maxCenter - minCenter);
         for (const l of rawLayouts) {
-          const scaledCenter = 18 + (l.x - minLeft) * scale;
-          l.x = Math.max(18 + l.w / 2, Math.min(treeMaxRight - l.w / 2, scaledCenter));
+          l.x = Math.round(
+            targetMinC + ((l.x - minCenter) / cSpan) * (targetMaxC - targetMinC)
+          );
         }
       } else {
-        const shift = maxRight > treeMaxRight ? treeMaxRight - maxRight : 18 - minLeft;
+        const shift =
+          maxRight > nodeSafeMaxRight
+            ? nodeSafeMaxRight - maxRight
+            : leftBound - minLeft;
         for (const l of rawLayouts) {
-          l.x += shift;
+          l.x = Math.round(l.x + shift);
         }
       }
     }
@@ -675,12 +691,22 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
 
               {/* Grounded pop shadow */}
               <rect
-                x={left + 2.5}
-                y={top + 3.5}
+                x={left + 6}
+                y={top + 8}
                 width={w}
                 height={h}
                 rx={9}
                 fill="var(--stage-shadow-ambient)"
+              />
+              <rect
+                x={left + 4}
+                y={top + 5}
+                width={w}
+                height={h}
+                rx={9}
+                fill="var(--line-strong)"
+                stroke={borderStroke}
+                strokeWidth={1.2}
               />
 
               {/* Main rounded card */}

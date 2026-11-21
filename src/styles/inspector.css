@@ -15,12 +15,12 @@
 /* Sticky Top Step Header */
 .inspector-top {
   flex-shrink: 0;
-  padding: 13px 16px 11px;
+  padding: 9px 14px 8px;
   border-bottom: 1px solid var(--line);
   background: var(--paper-2);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .inspector-meta-row {
@@ -31,14 +31,14 @@
 }
 
 .inspector-step-counter {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.03em;
 }
 
 .inspector-level-tag {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   padding: 1px 7px;
   border-radius: var(--radius-pill);
@@ -56,7 +56,7 @@
 
 .inspector-step-dot {
   flex: 1;
-  height: 5px;
+  height: 4.5px;
   border-radius: var(--radius-pill);
   border: none;
   padding: 0;
@@ -75,7 +75,7 @@
 
 .inspector-step-dot--active {
   background: var(--ink);
-  height: 6px;
+  height: 5.5px;
 }
 
 /* Scrollable Narrative Content */
@@ -83,17 +83,17 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 16px 20px;
+  padding: 11px 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 9px;
 }
 
 .inspector-step-title {
   margin: 0;
-  font-size: 15.5px;
+  font-size: 14.5px;
   font-weight: 800;
-  line-height: 1.4;
+  line-height: 1.34;
   letter-spacing: -0.015em;
   color: var(--ink);
 }
@@ -101,25 +101,25 @@
 .inspector-paragraphs {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 7px;
 }
 
 .inspector-paragraph {
   margin: 0;
-  font-size: 12.8px;
-  line-height: 1.72;
+  font-size: 12.2px;
+  line-height: 1.58;
   color: var(--ink-2);
 }
 
 /* Callout Box */
 .callout-box {
-  padding: 11px 13px;
+  padding: 8px 11px;
   border-radius: var(--radius-md);
   border: 1.5px solid var(--edge);
   box-shadow: var(--pop-shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
 }
 
 .callout-box--idea {
@@ -137,16 +137,16 @@
 .callout-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--ink);
 }
 
 .callout-text {
   margin: 0;
-  font-size: 12.2px;
-  line-height: 1.65;
+  font-size: 11.6px;
+  line-height: 1.52;
   color: var(--ink);
 }
 
@@ -155,14 +155,14 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--line-strong);
   background: var(--card);
-  padding: 10px 12px;
+  padding: 7px 10px;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .diffs-title {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -175,21 +175,21 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .diff-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 12px;
-  line-height: 1.55;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.44;
   color: var(--ink-2);
 }
 
 .diff-sign {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
   margin-top: 1px;
   border-radius: var(--radius-xs);
@@ -197,7 +197,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   line-height: 1;
   color: var(--ink);
@@ -230,7 +230,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 9px 11px;
+  padding: 7px 10px;
   background: var(--paper-2);
   border: none;
   cursor: pointer;
@@ -250,7 +250,7 @@
 }
 
 .source-drawer-title {
-  font-size: 11.5px;
+  font-size: 11.2px;
   font-weight: 700;
   color: var(--ink);
   overflow: hidden;
@@ -259,7 +259,7 @@
 }
 
 .source-drawer-lang {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   padding: 1px 5px;
   border-radius: var(--radius-xs);
@@ -289,7 +289,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 7px 11px;
+  padding: 6px 10px;
   border-top: 1px solid var(--line);
   border-bottom: 1px dashed var(--line-strong);
   background: var(--paper);
@@ -333,21 +333,21 @@
 
 .source-drawer-code {
   margin: 0;
-  padding: 11px 12px;
-  max-height: 280px;
+  padding: 9px 11px;
+  max-height: 240px;
   overflow: auto;
   background: var(--stage-bg);
-  font-size: 11.2px;
-  line-height: 1.55;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--ink);
   tab-size: 2;
 }
 
 .source-drawer-caption {
   margin: 0;
-  padding: 7px 11px;
+  padding: 6px 10px;
   border-top: 1px solid var(--line-soft);
-  font-size: 11px;
+  font-size: 10.8px;
   color: var(--muted);
   background: var(--paper-2);
 }
@@ -362,10 +362,10 @@
 }
 
 .recap-table-head {
-  padding: 8px 11px;
+  padding: 6px 10px;
   background: var(--blue);
   border-bottom: 1.5px solid var(--edge);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: var(--ink);
@@ -377,11 +377,11 @@
 }
 
 .recap-row {
-  padding: 10px 11px;
+  padding: 8px 10px;
   border-bottom: 1px dashed var(--line-strong);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .recap-row:last-child {
@@ -389,20 +389,20 @@
 }
 
 .recap-question {
-  font-size: 11.5px;
+  font-size: 11.2px;
   font-weight: 800;
   color: var(--ink);
 }
 
 .recap-decision {
-  font-size: 11.8px;
+  font-size: 11.4px;
   font-weight: 700;
   color: var(--green-stroke);
 }
 
 .recap-because {
-  font-size: 11.5px;
-  line-height: 1.55;
+  font-size: 11.2px;
+  line-height: 1.48;
   color: var(--muted);
 }
 
@@ -412,14 +412,14 @@
   border: 1.5px solid var(--edge);
   background: var(--paper-2);
   box-shadow: var(--pop-shadow);
-  padding: 12px 13px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .next-lesson-eyebrow {
-  font-size: 10px;
+  font-size: 9.8px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -428,45 +428,45 @@
 
 .next-lesson-title {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--ink);
 }
 
 .next-lesson-sub {
   margin: 0;
-  font-size: 11.8px;
+  font-size: 11.4px;
   color: var(--muted);
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
 .next-lesson-cta {
   align-self: flex-start;
-  padding: 6px 12px;
-  font-size: 12px;
+  padding: 5px 11px;
+  font-size: 11.5px;
 }
 
 /* Step Navigation Footer */
 .inspector-nav {
   flex-shrink: 0;
-  padding: 11px 14px;
+  padding: 8px 12px;
   border-top: 1px solid var(--line);
   background: var(--paper-2);
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .inspector-nav-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 9px;
+  gap: 8px;
 }
 
 .inspector-nav-btn {
-  height: 36px;
-  padding: 0 11px;
-  font-size: 12px;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 11.8px;
 }
 
 .inspector-shortcuts {
@@ -475,7 +475,7 @@
   justify-content: center;
   flex-wrap: wrap;
   gap: 10px;
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--muted);
 }
 
@@ -497,7 +497,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 9px 14px;
+  padding: 7px 14px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -512,14 +512,14 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.06em;
   color: var(--ink);
 }
 
 .objectives-badge {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: var(--radius-pill);
@@ -537,20 +537,20 @@
 .objectives-list {
   list-style: none;
   margin: 0;
-  padding: 2px 14px 12px;
+  padding: 0 14px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 158px;
+  gap: 4px;
+  max-height: 106px;
   overflow-y: auto;
 }
 
 .objective-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  font-size: 11.6px;
-  line-height: 1.48;
+  gap: 7px;
+  font-size: 11.2px;
+  line-height: 1.38;
   color: var(--muted);
   transition: color 0.16s ease;
 }
@@ -560,10 +560,10 @@
 }
 
 .objective-box {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
   margin-top: 1px;
-  border-radius: 4px;
+  border-radius: 3.5px;
   border: 1.5px solid var(--line-strong);
   background: var(--sheet);
   display: inline-flex;

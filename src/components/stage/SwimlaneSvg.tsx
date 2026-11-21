@@ -89,9 +89,9 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
   const connArrowId = `${uid}-conn-arrow`;
 
   const headerX = 18;
-  const headerW = 172;
-  const plotLeft = 200;
-  const plotW = 776;
+  const headerW = 158;
+  const plotLeft = 186;
+  const plotW = 792;
   const plotRight = plotLeft + plotW;
 
   const hasPhaseBands = Boolean(scene.phaseBands && scene.phaseBands.length > 0);
@@ -162,7 +162,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
     for (const ev of sorted) {
       const mx = toPlotX(ev.pos);
       const my = lg.eventRailY;
-      const text = truncateText(ev.label, 146, 9.2);
+      const text = truncateText(ev.label, 168, 9.2);
       const pillW = Math.round(Math.max(44, measureTextPx(text, 9.2) + 14));
       const pillX = Math.max(plotLeft + 4, Math.min(plotRight - pillW - 4, mx - pillW / 2));
 
@@ -508,8 +508,8 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
                 markerEnd={`url(#${connArrowId})`}
               />
               {conn.label && (() => {
-                const txt = truncateText(conn.label, 128, 9);
-                const lw = Math.max(40, measureTextPx(txt, 9) + 12);
+                const txt = truncateText(conn.label, 160, 9);
+                const lw = Math.max(40, measureTextPx(txt, 9) + 14);
                 const lx = Math.max(plotLeft + 4, Math.min(plotRight - lw - 4, (x1 + x2) / 2 - lw / 2));
                 const ly = midY - 9;
                 return (
@@ -573,14 +573,15 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
           const strokeW = isError || isParallel ? 2 : 1.5;
           const strokeDash = isQueued ? '5 3' : isBlocked ? '4 2.5' : undefined;
 
-          const hasOrder = Boolean(bar.orderBadge);
-          const textRightPad = hasOrder ? 26 : 10;
-          const labelAvailW = bw - (isRunning ? 22 : 12) - textRightPad;
-          const showSub = Boolean(bar.sublabel) && bh >= 34 && labelAvailW >= 46;
-          const mainLabel = truncateText(bar.label, Math.max(20, labelAvailW), 10.4);
+          const textLeftPad = isRunning ? 16 : 8;
+          const textRightPad = 7;
+          const labelAvailW = bw - textLeftPad - textRightPad;
+          const labelFs = bw < 68 ? 9.6 : 10.3;
+          const showSub = Boolean(bar.sublabel) && bh >= 34 && labelAvailW >= 44;
+          const mainLabel = truncateText(bar.label, Math.max(18, labelAvailW), labelFs);
           const subLabel =
             showSub && bar.sublabel ? truncateText(bar.sublabel, labelAvailW, 8.8) : undefined;
-          const textX = x1 + (isRunning ? 18 : 10);
+          const textX = x1 + textLeftPad;
 
           return (
             <g
@@ -595,8 +596,8 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
               </title>
               {/* Grounded subtle shadow */}
               <rect
-                x={x1 + 2}
-                y={by + 2.5}
+                x={x1 + 3}
+                y={by + 5}
                 width={bw}
                 height={bh}
                 rx={7.5}
@@ -685,7 +686,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
                 <text
                   x={textX}
                   y={subLabel ? by + bh / 2 - 1 : by + bh / 2 + 3.8}
-                  fontSize={10.4}
+                  fontSize={labelFs}
                   fontWeight={800}
                   fill="var(--ink)"
                 >

@@ -2,7 +2,7 @@ import type { Chapter } from '../../types/lesson';
 
 // ============================================================================
 // Chapters 01 & 02 — Pi Coding Agent (earendil-works/pi, formerly badlogic/pi-mono)
-// Verified directly against https://github.com/earendil-works/pi (main branch)
+// Verified directly against https://github.com/earendil-works/pi (v1.5.2)
 // and Mario Zechner's official blog post (2025-11-30).
 // ============================================================================
 
@@ -75,23 +75,23 @@ export const CHAPTERS_01_02: Chapter[] = [
             stepNumber: 1,
             shortLabel: '重型框架膨胀',
             badge: 'PROBLEM',
-            title: '还没写一行代码，上下文已被框架吃掉 18%',
+            title: '首轮请求还没发出，工具声明已经占了多少上下文？',
             paragraphs: [
               '主流商业编码助手常从简洁 CLI 起步，却在数月内演变成“失控宇宙飞船”：上万 Token 的庞大系统提示词、几十个重叠工具定义、启动即全量挂载的 MCP Schema，以及隐藏状态指令。',
-              'Mario Zechner 在 2025 年底的复盘中测算过：仅 Playwright MCP（21 工具）就占 `13.7k` Token，Chrome DevTools MCP（26 工具）占 `18k` Token——在 200k 窗口里，用户还没敲下第一条提示，宝贵注意力与预算就先蒸发 7%～18%。',
+              '这个图例设定 200k 上下文窗口，预载两组 MCP 工具的 Schema 共占 31.7k Token。加上 10k 系统提示词和 2k 首条任务，首轮使用 43.7k，约占窗口的 22%。',
             ],
             callout: {
               kind: 'warn',
               title: '注意力税与上下文腐化',
-              text: '系统提示词和工具 Schema 会在**每一轮**请求中重复出现。塞进 30 个当前用不到的工具，不仅烧钱，还会让模型在“选哪个工具”上分心。',
+              text: '系统提示词和可用工具会影响模型的输入预算。实际请求是否重发完整前缀、能否享受缓存折扣，取决于供应商的协议与缓存状态。',
             },
             diffs: [
               { kind: 'remove', text: '重型 Harness：10k+ 系统提示词 + 全量 MCP Schema 前置灌入' },
               { kind: 'add', text: 'Pi 极简基线：系统提示词 + 4 工具定义合计 <1,000 Token' },
             ],
             kpis: [
-              { label: '重型启动开销', value: '~36k tok', status: 'bad' },
-              { label: 'Pi 基线开销', value: '<1k tok', status: 'good' },
+              { label: '示例首轮开销', value: '43.7k tok', status: 'bad' },
+              { label: '示例 Pi 基线', value: '950 tok', status: 'good' },
               { label: 'Playwright MCP', value: '13.7k tok', status: 'warn' },
               { label: 'DevTools MCP', value: '18k tok', status: 'bad' },
             ],
@@ -132,8 +132,8 @@ export const CHAPTERS_01_02: Chapter[] = [
               ],
               calloutBadges: [
                 { label: '首轮节省上下文', value: '~40,750 tok', tone: 'green' },
-                { label: 'Pi 初始占比', value: '< 0.5%', tone: 'blue' },
-                { label: '重型初始占比', value: '21.8%', tone: 'rose' },
+                { label: 'Pi 首轮占比', value: '约 1.5%', tone: 'blue' },
+                { label: '重型首轮占比', value: '约 22%', tone: 'rose' },
               ],
             },
           },
@@ -252,7 +252,7 @@ export const CHAPTERS_01_02: Chapter[] = [
             title: 'Pi 的反直觉押注：4 把核心工具 + 超短系统提示词',
             paragraphs: [
               'Pi 的核心判断非常锋利：现代前沿模型在后训练（RL）阶段早已深刻理解“什么是编码代理”，根本不需要 10,000 Token 的保姆式说教。',
-              '因此 `pi-coding-agent` 默认只装载 4 把原子工具——`read`、`bash`、`edit`、`write`，配合模块化、超短的 `system-prompt.ts`（原始基线与 4 工具定义合计不到 `1,000` Token），在 Terminal-Bench 2.0 上搭配 Claude Opus 4.5 依然与重量级商业 Harness 正面抗衡。',
+              '因此 `pi-coding-agent` 默认只装载 4 把原子工具——`read`、`bash`、`edit`、`write`，配合模块化的 `system-prompt.ts`。图中的 Token 数是示意估算，实际输入取决于模型、启用工具和加载的项目资源。',
             ],
             callout: {
               kind: 'tip',
@@ -267,7 +267,7 @@ export const CHAPTERS_01_02: Chapter[] = [
               title: '默认 4 工具与极简 Preamble 源码',
               filePath: 'packages/coding-agent/src/core/system-prompt.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/system-prompt.ts',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/system-prompt.ts',
               language: 'ts',
               code: `// packages/coding-agent/src/core/system-prompt.ts
 selectedTools: [...(input.selectedTools ?? ["read", "bash", "edit", "write"])]
@@ -285,7 +285,7 @@ export function createCodingTools(cwd: string, options?: ToolsOptions): Tool[] {
     createWriteTool(cwd, options?.write),
   ];
 }`,
-              caption: '节选自 earendil-works/pi main 分支：默认工具数组严格锁定为 4 项',
+              caption: '教学摘编自 earendil-works/pi v1.5.2：这里展示内置编码预设，实际启用项可由 defaultTools 和 --tools 调整',
             },
             kpis: [
               { label: '默认工具数', value: '4 个', status: 'good' },
@@ -407,7 +407,7 @@ export function createCodingTools(cwd: string, options?: ToolsOptions): Tool[] {
               title: '内置全部 8 工具与只读预设',
               filePath: 'packages/coding-agent/src/core/tools/index.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/index.ts',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/src/core/tools/index.ts',
               language: 'ts',
               code: `export type ToolName =
   | "read" | "bash" | "powershell" | "edit" | "write"
@@ -602,7 +602,7 @@ export function createReadOnlyTools(cwd: string, options?: ToolsOptions): Tool[]
             callout: {
               kind: 'warn',
               title: '真实运行边界（源码核验）',
-              text: 'Pi 进程默认继承当前操作系统用户权限；扩展代码直接运行在 Pi 进程内。因此陌生仓库的 `.pi/` 资源必须经过 `project-trust` 明确授权才会被加载。',
+              text: '项目级设置和可执行资源通常需要通过 `project-trust`。Pi 为定位会话会先读取 `sessionDir`，而 `AGENTS.md` 等说明文件仍会加载，除非主动禁用。进程与工具的访问权限由操作系统或外部隔离环境限制。',
             },
             diffs: [
               { kind: 'remove', text: '逐条 Bash 命令弹窗确认 / 用小模型做表面意图预检' },
@@ -684,103 +684,9 @@ export function createReadOnlyTools(cwd: string, options?: ToolsOptions): Tool[]
             },
           },
 
-          // Step 7
+          // Step 7 (RECAP)
           {
             stepNumber: 7,
-            shortLabel: '中文社区消歧',
-            badge: 'INSIGHT',
-            title: '概念消歧：中文圈里的“派 / Pi Agent”容易撞名',
-            paragraphs: [
-              '在中文 AI 社区搜“派 Agent”时，结果常指向三个完全不同的项目。为避免概念混淆，本课程全程锚定 **Mario Zechner 的开源编码代理 Pi Coding Agent**（现仓库 `earendil-works/pi`，原名 `badlogic/pi-mono`，也是现象级开源项目 OpenClaw 的底层引擎）。',
-              '另外两个高频撞名对象分别是：国内“技术派”社区的 Java SpringAI 工作流项目 `PaiAgent` / `PaiFlow`（`itwanger/PaiAgent`），以及 Inflection AI 推出的情感陪伴聊天机器人 `Pi`（`pi.ai`）。',
-            ],
-            callout: {
-              kind: 'tip',
-              title: '术语约定（统一全文口径）',
-              text: '本课程将保留源码原始英文标识符，并对中文社区易混淆词作固定映射：`Steering` → **转向 / 实时纠偏**；`Follow-up` → **跟进 / 排队跟进**（避免与“引导”混用）；`Compaction` → **上下文压缩**；`Tree Session` → **树形会话**。',
-            },
-            diffs: [
-              { kind: 'add', text: '主角：`earendil-works/pi`（原 `badlogic/pi-mono`），TypeScript 极简编码 Agent' },
-              { kind: 'remove', text: '非 `itwanger/PaiAgent`（Java 工作流编排），非 Inflection `pi.ai`（陪伴机器人）' },
-            ],
-            kpis: [
-              { label: '官方仓库', value: 'earendil-works/pi', status: 'good' },
-              { label: 'GitHub Stars', value: '122k+', status: 'good' },
-              { label: '代表生态', value: 'OpenClaw 引擎', status: 'good' },
-              { label: '同名歧义项', value: '2 类常见撞名', status: 'warn' },
-            ],
-            legend: [
-              { color: PALETTE.green, label: '本课程解析对象' },
-              { color: PALETTE.orange, label: '常见同名但无关项目', dashed: true },
-            ],
-            scene: {
-              kind: 'iso-flow',
-              title: '中文社区“派 / Pi”三大指代精确消歧',
-              nodes: [
-                {
-                  id: 'query',
-                  x: 160,
-                  y: 270,
-                  label: '搜索“派 / Pi”',
-                  sublabel: '中文社区高频简称',
-                  icon: 'search',
-                  tone: 'neutral',
-                },
-                {
-                  id: 'pi-coding',
-                  x: 530,
-                  y: 110,
-                  label: 'Pi Coding Agent',
-                  sublabel: 'earendil-works/pi · Mario Zechner',
-                  icon: 'terminal',
-                  tone: 'green',
-                  size: 'lg',
-                  active: true,
-                  badge: '本课程主角',
-                },
-                {
-                  id: 'pai-java',
-                  x: 530,
-                  y: 280,
-                  label: '技术派 PaiAgent',
-                  sublabel: 'itwanger/PaiAgent · Java DAG 工作流',
-                  icon: 'layers',
-                  tone: 'orange',
-                  dimmed: true,
-                },
-                {
-                  id: 'inflection',
-                  x: 530,
-                  y: 450,
-                  label: 'Inflection Pi (pi.ai)',
-                  sublabel: 'Personal Intelligence · 情感陪伴 Bot',
-                  icon: 'message',
-                  tone: 'violet',
-                  dimmed: true,
-                },
-                {
-                  id: 'openclaw',
-                  x: 840,
-                  y: 110,
-                  label: 'OpenClaw 等生态',
-                  sublabel: '直接复用 pi-agent-core',
-                  icon: 'sparkles',
-                  tone: 'blue',
-                  active: true,
-                },
-              ],
-              edges: [
-                { from: 'query', to: 'pi-coding', label: '本教程锚定', packetColor: PALETTE.green, status: 'active' },
-                { from: 'query', to: 'pai-java', label: '易混淆', dashed: true, packetColor: PALETTE.orange, status: 'dimmed' },
-                { from: 'query', to: 'inflection', label: '非编码 Agent', dashed: true, packetColor: PALETTE.violet, status: 'dimmed' },
-                { from: 'pi-coding', to: 'openclaw', label: '底层引擎', packetColor: PALETTE.blue, status: 'active' },
-              ],
-            },
-          },
-
-          // Step 8 (RECAP)
-          {
-            stepNumber: 8,
             shortLabel: '反框架决策表',
             badge: 'RECAP',
             title: '总结：小内核，可编程边缘',
@@ -912,7 +818,7 @@ export function createReadOnlyTools(cwd: string, options?: ToolsOptions): Tool[]
         totalInChapter: 2,
         title: '单向依赖的 Monorepo 架构',
         subtitle:
-          '拆解 earendil-works/pi 严苛单向 DAG：从 2,548 行的 pi-agent-core 到 OpenClaw 无头嵌入',
+          '拆解 earendil-works/pi 严苛单向 DAG：从 2,555 行的 pi-agent-core 到 OpenClaw 无头嵌入',
         durationMin: 6,
         level: '入门',
         objectives: [
@@ -928,7 +834,7 @@ export function createReadOnlyTools(cwd: string, options?: ToolsOptions): Tool[]
           },
           {
             id: 'mono-3',
-            text: '掌握 `pi-agent-core`（6 文件 / 2,548 行）与零依赖 `pi-tui` 的职责边界',
+            text: '掌握 `pi-agent-core`（6 文件 / 2,555 行）与零依赖 `pi-tui` 的职责边界',
             completedAtStep: 4,
           },
           {
@@ -1016,7 +922,7 @@ export function createReadOnlyTools(cwd: string, options?: ToolsOptions): Tool[]
             sourceDrawer: {
               title: '源码实测内部依赖图（packages/*/package.json）',
               filePath: 'packages/coding-agent/package.json',
-              githubUrl: 'https://github.com/earendil-works/pi/blob/main/packages/coding-agent/package.json',
+              githubUrl: 'https://github.com/earendil-works/pi/blob/v1.5.2/packages/coding-agent/package.json',
               language: 'text',
               code: `pi-schema      -> internal_deps: []
 pi-telemetry   -> internal_deps: []
@@ -1027,7 +933,7 @@ pi-codemode    -> internal_deps: []
 pi-ai          -> internal_deps: [pi-schema, pi-telemetry]
 pi-agent-core  -> internal_deps: [pi-ai, pi-schema]
 pi-coding-agent-> internal_deps: [pi-agent-core, pi-ai, pi-tui, pi-mcp, pi-codemode]`,
-              caption: '直接读取 earendil-works/pi main 分支各包 package.json 核验得到的零环 DAG',
+              caption: '直接读取 earendil-works/pi v1.5.2各包 package.json 核验得到的零环 DAG',
             },
             kpis: [
               { label: '循环依赖数', value: '0', status: 'good' },
@@ -1068,7 +974,7 @@ pi-coding-agent-> internal_deps: [pi-agent-core, pi-ai, pi-tui, pi-mcp, pi-codem
             title: '`@earendil-works/pi-ai`：把几十家厂商归一为标准协议',
             paragraphs: [
               'Mario 发现市面上看似眼花缭乱的几十家大模型服务商，底层绝大多数只走四类 Wire 协议：OpenAI Completions、OpenAI Responses、Anthropic Messages 与 Google Generative AI。',
-              '`pi-ai` 以统一 `streamSimple()` / `completeSimple()` 抽象这些协议，内置支持工具调用的模型目录（含价格、上下文上限与 Thinking 能力元数据）、OAuth/API Key 自动解析，甚至允许你在**同一会话中途无损切换不同厂商模型**（Cross-Provider Handoff）。',
+              '`pi-ai` 以统一 `streamSimple()` / `completeSimple()` 抽象这些协议，内置支持工具调用的模型目录（含价格、上下文上限与 Thinking 能力元数据）、OAuth/API Key 自动解析，甚至允许你在**同一会话中途切换不同厂商模型**（Cross-Provider Handoff）。',
             ],
             callout: {
               kind: 'tip',
@@ -1082,7 +988,7 @@ pi-coding-agent-> internal_deps: [pi-agent-core, pi-ai, pi-tui, pi-mcp, pi-codem
             kpis: [
               { label: '主流 Wire 协议', value: '4 大家族', status: 'good' },
               { label: '内置 Provider', value: '15+ 厂商/本地', status: 'good' },
-              { label: '中途换模型', value: '支持 Handoff', status: 'good' },
+              { label: '中途换模型', value: '可切换模型', status: 'good' },
               { label: '鉴权方式', value: 'API Key + OAuth', status: 'neutral' },
             ],
             legend: [
@@ -1097,7 +1003,7 @@ pi-coding-agent-> internal_deps: [pi-agent-core, pi-ai, pi-tui, pi-mcp, pi-codem
                 { id: 'catalog', x: 385, y: 270, label: 'pi-ai Router', sublabel: '模型目录 · 鉴权 · 计费', icon: 'cpu', tone: 'dark', size: 'lg', active: true },
                 { id: 'p-ant', x: 635, y: 155, label: 'Anthropic Messages', sublabel: 'Claude + Thinking', icon: 'brain', tone: 'orange' },
                 { id: 'p-oai', x: 855, y: 155, label: 'OpenAI Comp / Resp', sublabel: 'GPT · Codex · DeepSeek', icon: 'brain', tone: 'green' },
-                { id: 'p-ggl', x: 635, y: 385, label: 'Google GenAI', sublabel: 'Gemini · Vertex AI', icon: 'brain', tone: 'blue' },
+                { id: 'p-ggl', x: 635, y: 385, label: 'Google GenAI', sublabel: 'Gemini / Vertex AI', icon: 'brain', tone: 'blue' },
                 { id: 'p-loc', x: 855, y: 385, label: 'Local / Custom', sublabel: 'llama.cpp · Ollama · vLLM', icon: 'terminal', tone: 'violet' },
               ],
               edges: [
@@ -1113,37 +1019,37 @@ pi-coding-agent-> internal_deps: [pi-agent-core, pi-ai, pi-tui, pi-mcp, pi-codem
           // Step 4
           {
             stepNumber: 4,
-            shortLabel: '2548行核心与TUI',
+            shortLabel: 'Agent 核心与 TUI',
             badge: 'TECHNIQUE',
-            title: '`pi-agent-core`（2,548 行）与零依赖 `pi-tui` 差分渲染',
+            title: '`pi-agent-core`（2,555 行）与零依赖 `pi-tui` 差分渲染',
             paragraphs: [
-              '整个 `@earendil-works/pi-agent-core` 源码目录只有 **6 个 TypeScript 文件、总计 2,548 行代码**：`agent-loop.ts`（952 行）负责无状态循环，`agent.ts`（623 行）负责状态与双队列封装，`types.ts`（551 行）定义完整契约，外加 `proxy.ts`、`stream-fn.ts` 与 `index.ts`。',
+              '整个 `@earendil-works/pi-agent-core` 源码目录只有 **6 个 TypeScript 文件、总计 2,555 行代码**：`agent-loop.ts`（959 行）负责无状态循环，`agent.ts`（623 行）负责状态与双队列封装，`types.ts`（551 行）定义完整契约，外加 `proxy.ts`、`stream-fn.ts` 与 `index.ts`。',
               '同级的 `@earendil-works/pi-tui` 则没有任何内部依赖，摒弃了重型 React-for-CLI 框架，自研保留模式组件 + **差分渲染（Differential Rendering）** + `CSI 2026` 同步输出，实现高频流式输出零闪烁，并支持 Kitty/iTerm2 终端内联图片。',
             ],
             callout: {
               kind: 'idea',
               title: '两小时读完整个 Agent 内核',
-              text: '2,548 行意味着任何熟悉 TypeScript 的工程师都能在一个下午逐行读完并吃透全部运行时语义——没有层层叠叠的 Factory/Manager 抽象地狱。',
+              text: '2,555 行意味着任何熟悉 TypeScript 的工程师都能在一个下午逐行读完并吃透全部运行时语义——没有层层叠叠的 Factory/Manager 抽象地狱。',
             },
             sourceDrawer: {
-              title: 'pi-agent-core 精确源码清单（实测 main 分支）',
+              title: 'pi-agent-core 精确源码清单（实测 v1.5.2）',
               filePath: 'packages/agent/src/index.ts',
-              githubUrl: 'https://github.com/earendil-works/pi/tree/main/packages/agent/src',
+              githubUrl: 'https://github.com/earendil-works/pi/tree/v1.5.2/packages/agent/src',
               language: 'text',
               code: `packages/agent/src/
-├── agent-loop.ts   952 lines  # 双层循环、工具编排、流式转发
+├── agent-loop.ts   959 lines  # 双层循环、工具编排、流式转发
 ├── agent.ts        623 lines  # 有状态 Agent 类、双队列、事件订阅
 ├── types.ts        551 lines  # AgentEvent / AgentTool / Hooks 契约
 ├── proxy.ts        397 lines  # 代理流转发支持
 ├── stream-fn.ts     20 lines  # 默认 streamFn 入口
 └── index.ts          5 lines  # 根导出
 -------------------------------------------------------
-TOTAL: 6 files, 2,548 lines of TypeScript`,
-              caption: '直接统计 earendil-works/pi main 分支 packages/agent/src 行数',
+TOTAL: 6 files, 2,555 lines of TypeScript`,
+              caption: '直接统计 earendil-works/pi v1.5.2 packages/agent/src 行数',
             },
             kpis: [
               { label: 'agent-core 文件数', value: '6 个 TS', status: 'good' },
-              { label: 'agent-core 总行数', value: '2,548 行', status: 'good' },
+              { label: 'agent-core 总行数', value: '2,555 行', status: 'good' },
               { label: 'pi-tui 内部依赖', value: '0', status: 'good' },
               { label: '防闪烁协议', value: 'CSI 2026 + Diff', status: 'good' },
             ],
@@ -1153,13 +1059,13 @@ TOTAL: 6 files, 2,548 lines of TypeScript`,
             ],
             scene: {
               kind: 'iso-flow',
-              title: '双子内核并立：2,548 行 Agent 核心 vs 零依赖终端渲染引擎',
+              title: '双子内核并立：2,555 行 Agent 核心 vs 零依赖终端渲染引擎',
               zones: [
-                { id: 'z-core', x: 75, y: 70, w: 400, h: 420, label: '@earendil-works/pi-agent-core（2,548 行）', tone: 'green' },
+                { id: 'z-core', x: 75, y: 70, w: 400, h: 420, label: '@earendil-works/pi-agent-core（2,555 行）', tone: 'green' },
                 { id: 'z-tui', x: 525, y: 70, w: 400, h: 420, label: '@earendil-works/pi-tui（零内部依赖）', tone: 'violet' },
               ],
               nodes: [
-                { id: 'loop-ts', x: 275, y: 165, label: 'agent-loop.ts', sublabel: '952 行 · 双层主循环', icon: 'loop', tone: 'green', active: true },
+                { id: 'loop-ts', x: 275, y: 165, label: 'agent-loop.ts', sublabel: '959 行 · 双层主循环', icon: 'loop', tone: 'green', active: true },
                 { id: 'agent-ts', x: 275, y: 355, label: 'agent.ts + types.ts', sublabel: '623 + 551 行 · 队列与事件', icon: 'code', tone: 'blue', active: true },
                 { id: 'tui-ren', x: 725, y: 165, label: 'Main / AltScreen', sublabel: '双渲染器 · 差分行刷新', icon: 'terminal', tone: 'violet', active: true },
                 { id: 'tui-comp', x: 725, y: 355, label: 'CSI 2026 + 组件库', sublabel: 'Editor · Markdown · 内联图', icon: 'sparkles', tone: 'orange' },
@@ -1286,7 +1192,7 @@ TOTAL: 6 files, 2,548 lines of TypeScript`,
             badge: 'RECAP',
             title: '总结：单向分层如何支撑长期演进',
             paragraphs: [
-              '从 `pi-ai` 的协议归一，到 `pi-agent-core` 的 2,548 行纯粹循环，再到 `pi-tui` 零依赖差分渲染与 `pi-coding-agent` 四形态输出，每一层都守住了“向下依赖、向上透明”的铁律。',
+              '从 `pi-ai` 的协议归一，到 `pi-agent-core` 的 2,555 行纯粹循环，再到 `pi-tui` 零依赖差分渲染与 `pi-coding-agent` 四形态输出，每一层都守住了“向下依赖、向上透明”的铁律。',
               '下一章我们将真正钻进 `packages/agent/src/agent-loop.ts` 的心脏，逐行拆解内层 Turn 循环与双队列外层循环。',
             ],
             recapTable: [
@@ -1313,7 +1219,7 @@ TOTAL: 6 files, 2,548 lines of TypeScript`,
             ],
             kpis: [
               { label: '依赖结构', value: '严格无环 DAG', status: 'good' },
-              { label: '核心体积', value: '2,548 行 TS', status: 'good' },
+              { label: '核心体积', value: '2,555 行 TS', status: 'good' },
               { label: '交付形态', value: 'TUI/JSON/RPC/SDK', status: 'good' },
               { label: '生产验证', value: 'OpenClaw 无头复用', status: 'good' },
             ],
@@ -1327,7 +1233,7 @@ TOTAL: 6 files, 2,548 lines of TypeScript`,
               title: '全栈分层收束图：四层各司其职',
               nodes: [
                 { id: 'l1', x: 160, y: 270, label: 'L1 · pi-ai', sublabel: '多厂商 Wire 协议', icon: 'brain', tone: 'blue' },
-                { id: 'l2', x: 390, y: 270, label: 'L2 · pi-agent-core', sublabel: '2,548 行双层循环', icon: 'loop', tone: 'green', active: true },
+                { id: 'l2', x: 390, y: 270, label: 'L2 · pi-agent-core', sublabel: '2,555 行双层循环', icon: 'loop', tone: 'green', active: true },
                 { id: 'l3', x: 630, y: 270, label: 'L3 · pi-coding-agent', sublabel: '工具 · 会话 · 扩展', icon: 'cpu', tone: 'dark', active: true },
                 { id: 'l4', x: 850, y: 170, label: 'TUI / CLI / RPC', sublabel: '官方多形态终端', icon: 'terminal', tone: 'violet' },
                 { id: 'l5', x: 850, y: 375, label: 'OpenClaw 等应用', sublabel: '外部多通道生态', icon: 'sparkles', tone: 'orange' },
@@ -1451,7 +1357,7 @@ TOTAL: 6 files, 2,548 lines of TypeScript`,
             badge: 'SOLUTION',
             title: '`agentLoop` 与 `runAgentLoop`：创建事件流并播种初始上下文',
             paragraphs: [
-              '当你调用 `agent.prompt("...")` 时，底层进入 `agentLoop(prompts, context, config, signal, streamFn)`。它立刻返回一个异步可迭代的 `EventStream<AgentEvent, AgentMessage[]>`，并在后台启动 `runAgentLoop`。',
+              '`Agent.prompt()` 在生命周期封装内直接等待 `runAgentLoop()`，并用事件回调更新 Agent 状态。低层 `agentLoop()` 是同一实现的流式包装，直接调用它会立即拿到异步可迭代的 `EventStream<AgentEvent, AgentMessage[]>`。',
               '进入主循环前，`runAgentLoop` 会先做三件确定的事：用 `declareToolChanges` 补齐工具变动声明、将初始消息合入 `currentContext.messages` 与 `newMessages`，并依次发射 `agent_start`、`turn_start` 以及初始提示的 `message_start`/`message_end`。',
             ],
             callout: {
@@ -1463,7 +1369,7 @@ TOTAL: 6 files, 2,548 lines of TypeScript`,
               title: 'agentLoop 与 runAgentLoop 入口源码',
               filePath: 'packages/agent/src/agent-loop.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts#L52-L140',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `export function agentLoop(
   prompts: AgentMessage[],
@@ -1494,24 +1400,24 @@ export async function runAgentLoop(/* ... */): Promise<AgentMessage[]> {
   await runLoop(currentContext, newMessages, config, signal, emit, streamFn);
   return newMessages;
 }`,
-              caption: 'packages/agent/src/agent-loop.ts 第 52–140 行核心骨架',
+              caption: 'packages/agent/src/agent-loop.ts 入口函数的教学摘编',
             },
             kpis: [
-              { label: '返回类型', value: 'EventStream', status: 'good' },
+              { label: '低层流式包装', value: 'agentLoop → EventStream', status: 'good' },
               { label: '首发事件', value: 'agent_start', status: 'neutral' },
               { label: '初始工具校验', value: 'declareToolChanges', status: 'good' },
               { label: '状态隔离', value: '浅拷贝快照', status: 'good' },
             ],
             legend: [
-              { color: PALETTE.blue, label: '同步返回事件流' },
+              { color: PALETTE.blue, label: 'Agent.prompt 调用路径' },
               { color: PALETTE.green, label: '异步驱动 runLoop' },
             ],
             scene: {
               kind: 'iso-flow',
-              title: 'agentLoop 启动序列：事件流异步解耦与初始状态播种',
+              title: 'Agent.prompt 启动序列：初始化消息并发出事件',
               nodes: [
                 { id: 'prompt', x: 145, y: 270, label: 'Agent.prompt()', sublabel: '归一化用户消息', icon: 'user', tone: 'blue' },
-                { id: 'entry', x: 355, y: 270, label: 'agentLoop()', sublabel: '立即返回 EventStream', icon: 'zap', tone: 'violet', active: true },
+                { id: 'entry', x: 355, y: 270, label: 'runAgentLoop()', sublabel: '传入上下文与事件回调', icon: 'zap', tone: 'violet', active: true },
                 { id: 'decl', x: 585, y: 170, label: 'declareToolChanges', sublabel: '检查工具清单差量', icon: 'wrench', tone: 'orange' },
                 { id: 'emit', x: 585, y: 370, label: 'emit 启动事件', sublabel: 'agent_start · turn_start', icon: 'message', tone: 'blue' },
                 { id: 'runloop', x: 830, y: 270, label: 'runLoop()', sublabel: '进入双层主循环', icon: 'loop', tone: 'green', size: 'lg', active: true },
@@ -1519,8 +1425,7 @@ export async function runAgentLoop(/* ... */): Promise<AgentMessage[]> {
               edges: [
                 { from: 'prompt', to: 'entry', packetColor: PALETTE.blue, status: 'active' },
                 { from: 'entry', to: 'decl', packetColor: PALETTE.orange, status: 'active' },
-                { from: 'entry', to: 'emit', packetColor: PALETTE.violet, status: 'active' },
-                { from: 'decl', to: 'runloop', packetColor: PALETTE.green, status: 'active' },
+                { from: 'decl', to: 'emit', packetColor: PALETTE.violet, status: 'active' },
                 { from: 'emit', to: 'runloop', packetColor: PALETTE.green, status: 'active' },
               ],
             },
@@ -1783,7 +1688,7 @@ export async function runAgentLoop(/* ... */): Promise<AgentMessage[]> {
               title: '工具回填、finishTurn 与内层循环收敛源码',
               filePath: 'packages/agent/src/agent-loop.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts#L273-L313',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `const toolCalls = message.content.filter((c) => c.type === "toolCall");
 const toolResults: ToolResultMessage[] = [];
@@ -1809,7 +1714,7 @@ if (decision?.action === "end") {
   return;
 }
 pendingMessages = (await config.getSteeringMessages?.()) || [];`,
-              caption: 'packages/agent/src/agent-loop.ts 第 273–313 行完整收敛逻辑',
+              caption: 'packages/agent/src/agent-loop.ts 工具批次与 turn 收尾的教学摘编',
             },
             kpis: [
               { label: '结果回填顺序', value: '助手调用原序', status: 'good' },
@@ -2020,7 +1925,7 @@ pendingMessages = (await config.getSteeringMessages?.()) || [];`,
               title: 'PendingMessageQueue 与双队列初始化源码',
               filePath: 'packages/agent/src/agent.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent.ts#L154-L185',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent.ts',
               language: 'ts',
               code: `export type QueueMode = "all" | "one-at-a-time";
 
@@ -2044,7 +1949,7 @@ class PendingMessageQueue {
 // Agent 构造函数默认值：
 this.steeringQueue = new PendingMessageQueue(runtimeOptions.steeringMode ?? "one-at-a-time");
 this.followUpQueue = new PendingMessageQueue(runtimeOptions.followUpMode ?? "one-at-a-time");`,
-              caption: 'packages/agent/src/agent.ts 第 154–185 行 & 第 260–261 行',
+              caption: 'packages/agent/src/agent.ts 双队列初始化的教学摘编',
             },
             kpis: [
               { label: 'Steering 默认模式', value: 'one-at-a-time', status: 'good' },
@@ -2169,7 +2074,7 @@ this.followUpQueue = new PendingMessageQueue(runtimeOptions.followUpMode ?? "one
               title: 'types.ts 对当前 Steering 时机的权威注释',
               filePath: 'packages/agent/src/types.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/types.ts#L287-L298',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/types.ts',
               language: 'ts',
               code: `/**
  * Returns steering messages to inject into the conversation mid-run.
@@ -2180,7 +2085,7 @@ this.followUpQueue = new PendingMessageQueue(runtimeOptions.followUpMode ?? "one
  * Tool calls from the current assistant message are not skipped.
  */
 getSteeringMessages?: () => Promise<AgentMessage[]>;`,
-              caption: 'earendil-works/pi main 分支 types.ts 第 287–298 行（commit 208a2cc 后生效）',
+              caption: 'earendil-works/pi v1.5.2 types.ts 的 AgentLoopConfig 约定',
             },
             diffs: [
               { kind: 'remove', text: '旧版（<2026-03）：串行工具间隙插检 Steering，跳过剩余工具' },
@@ -2327,7 +2232,7 @@ getSteeringMessages?: () => Promise<AgentMessage[]>;`,
               title: '双层 while 主循环核心骨架源码',
               filePath: 'packages/agent/src/agent-loop.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts#L190-L335',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `let pendingMessages = (await config.getSteeringMessages?.()) || [];
 
@@ -2357,7 +2262,7 @@ while (true) {
   break;
 }
 await emit({ type: "agent_end", messages: newMessages });`,
-              caption: 'packages/agent/src/agent-loop.ts 第 190–335 行精简控制流',
+              caption: 'packages/agent/src/agent-loop.ts runLoop 教学摘编',
             },
             kpis: [
               { label: '外层循环职责', value: 'Follow-up + 兜底续行', status: 'good' },
@@ -2478,7 +2383,7 @@ await emit({ type: "agent_end", messages: newMessages });`,
           },
           {
             id: 'ab-2',
-            text: '掌握 `AbortController` 全链路穿透与“零悬空 `toolResult`”不变量（`4438c58`）',
+            text: '理解 `AbortController` 如何停止运行，以及稳定版与主分支对同批工具结果的处理差异',
             completedAtStep: 2,
           },
           {
@@ -2550,12 +2455,12 @@ await emit({ type: "agent_end", messages: newMessages });`,
           // Step 2
           {
             stepNumber: 2,
-            shortLabel: 'Abort 零悬空',
+            shortLabel: 'Abort 批次收尾',
             badge: 'TECHNIQUE',
-            title: '`AbortController` 全链路穿透与“零悬空 `toolResult`”不变量',
+            title: '`AbortController` 如何传递中止信号并结束工具批次',
             paragraphs: [
               '每次运行开始时，`Agent` 都会新建一枚 `AbortController`，将其 `signal` 穿透传给 `streamFn`、`prepareToolCall`、`beforeToolCall`、`tool.execute` 与 `afterToolCall`。',
-              '最关键的是 `prepareToolCall` 的第一行守卫（commit `4438c58` / `#9986`）：一旦检测到 `signal?.aborted`，它跳过后续钩子与执行，但**仍然立即合成一条 `{ isError: true, content: "Operation aborted" }` 的 `toolResult`**，保证同批次里哪怕第 2、3 个工具没跑，也不会在历史里留下半个悬空 `toolCall`！',
+              'v1.5.2 在 `prepareToolCall` 的预检钩子之后检查中止。工具批次循环也会因中止提前退出，剩余调用不一定有配对结果。当前主分支把检查移到预检第一行，跳过剩余调用的钩子与执行，并为它们生成 `Operation aborted` 错误结果。下图演示的是主分支修复。',
             ],
             callout: {
               kind: 'tip',
@@ -2563,10 +2468,10 @@ await emit({ type: "agent_end", messages: newMessages });`,
               text: '在 `pi-coding-agent` 交互模式中，用户按中止键停止当前 Run 后，尚未消费的队列消息会被退回编辑器，不会平白丢失。',
             },
             sourceDrawer: {
-              title: 'Abort 首行检查确保每个工具都有 toolResult',
+              title: '主分支修复：在预检前检查 AbortSignal',
               filePath: 'packages/agent/src/agent-loop.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts#L721-L729',
+                'https://github.com/earendil-works/pi/blob/1e34c3b4c7df78e716a8f53ad0bcf3a00feceedc/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `async function prepareToolCall(/* ... */) {
   // Once aborted, skip preparation and the hooks; callers still record
@@ -2580,17 +2485,17 @@ await emit({ type: "agent_end", messages: newMessages });`,
   }
   // ... lookup -> prepareArguments -> validate -> beforeToolCall
 }`,
-              caption: 'packages/agent/src/agent-loop.ts 第 721–729 行（commit 4438c58 修复批次中止配对）',
+              caption: '主分支的 #9986 修复；稳定版 v1.5.2 的批次循环仍会因中止提前退出。',
             },
             diffs: [
               { kind: 'add', text: '单一 `AbortSignal` 贯穿流式推理与全部工具生命周期' },
-              { kind: 'add', text: '已中止的工具跳过钩子与执行，但必产 `Operation aborted` 结果配对' },
+              { kind: 'add', text: '主分支为尚未预检的调用生成 `Operation aborted` 结果' },
             ],
             kpis: [
               { label: '信号载体', value: 'Web AbortSignal', status: 'good' },
-              { label: '检查优先级', value: '早于所有钩子', status: 'good' },
-              { label: '悬空 toolCall', value: '0（严格配对）', status: 'good' },
-              { label: '关键修复提交', value: '4438c58 (#9986)', status: 'neutral' },
+              { label: '主分支检查点', value: '早于工具预检', status: 'good' },
+              { label: 'v1.5.2 中止', value: '批次可提前退出', status: 'good' },
+              { label: '主分支修复', value: '#9986', status: 'neutral' },
             ],
             legend: [
               { color: PALETTE.orange, label: 'AbortSignal 穿透广播' },
@@ -2598,12 +2503,12 @@ await emit({ type: "agent_end", messages: newMessages });`,
             ],
             scene: {
               kind: 'iso-flow',
-              title: 'AbortSignal 穿透：停止副作用，但完整配对每一个 toolResult',
+              title: '主分支：中止后补齐未执行调用的 toolResult',
               nodes: [
                 { id: 'ctrl', x: 165, y: 270, label: 'agent.abort()', sublabel: '触发 AbortSignal', icon: 'shield', tone: 'orange', active: true },
-                { id: 't1', x: 470, y: 140, label: 'Tool #1 (运行中)', sublabel: '收到 signal 立即中止', icon: 'terminal', tone: 'rose' },
+                { id: 't1', x: 470, y: 140, label: 'Tool #1 (运行中)', sublabel: '工具协作处理中止', icon: 'terminal', tone: 'rose' },
                 { id: 't2', x: 470, y: 390, label: 'Tool #2 (待准备)', sublabel: '跳过钩子 · immediate', icon: 'clock', tone: 'orange', active: true },
-                { id: 'pair', x: 805, y: 270, label: '双份 toolResult', sublabel: 'isError: true · 零悬空', icon: 'check', tone: 'green', size: 'lg', active: true },
+                { id: 'pair', x: 805, y: 270, label: '批次结果收尾', sublabel: '未执行调用补错误结果', icon: 'check', tone: 'green', size: 'lg', active: true },
               ],
               edges: [
                 { from: 'ctrl', to: 't1', label: 'signal', packetColor: PALETTE.orange, status: 'active' },
@@ -2622,7 +2527,7 @@ await emit({ type: "agent_end", messages: newMessages });`,
             title: '`stopReason: "error" | "aborted"` 硬退出与 `finally` 铁律',
             paragraphs: [
               '`pi-agent-core` 给 `StreamFn` 定了一条铁契约：**请求/模型/运行时失败绝不允许抛出异常或 reject Promise**，必须编码在事件流里，产出一份带 `stopReason: "error" | "aborted"` 与 `errorMessage` 的 `AssistantMessage`。',
-              '主循环遇到这两种 `stopReason` 会立即走**不可绕过的硬退出**（不跑工具、不看 `finishTurn` 的 `continue`、不消费队列）；即便外围代码真的意外抛错，`Agent.runWithLifecycle` 也有 `catch -> handleRunFailure` 与 `finally -> finishRun()` 托底，确保 `isStreaming` 与 `pendingToolCalls` 100% 干净复位。',
+              '主循环遇到这两种 `stopReason` 会立即走**不可绕过的硬退出**（不启动该响应里的工具；仍调用 `finishTurn` 收尾，但忽略其续跑决定，也不消费队列）；即便外围代码真的意外抛错，`Agent.runWithLifecycle` 也有 `catch -> handleRunFailure` 与 `finally -> finishRun()` 托底，确保 `isStreaming` 与 `pendingToolCalls` 100% 干净复位。',
             ],
             callout: {
               kind: 'idea',
@@ -2681,7 +2586,7 @@ await emit({ type: "agent_end", messages: newMessages });`,
               title: 'length 截断熔断源码（failToolCallsFromTruncatedMessage）',
               filePath: 'packages/agent/src/agent-loop.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent-loop.ts#L493-L518',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent-loop.ts',
               language: 'ts',
               code: `// A "length" stop means the output was cut off by the token limit, so
 // every tool call in the message may carry truncated arguments. Fail
@@ -2696,7 +2601,7 @@ result: createErrorToolResult(
   \`Tool call "\${toolCall.name}" was not executed: the response hit the output \` +
   \`token limit, so its arguments may be truncated. Re-issue with complete arguments.\`
 )`,
-              caption: 'packages/agent/src/agent-loop.ts 第 281–284 行 & 第 493–518 行（#6285）',
+              caption: 'packages/agent/src/agent-loop.ts 截断工具调用的教学摘编',
             },
             diffs: [
               { kind: 'remove', text: '盲信补全解析后的截断参数直接执行 `write`/`edit`/`bash`' },
@@ -2798,7 +2703,7 @@ result: createErrorToolResult(
               title: 'Agent.continue() 校验与队列回退源码',
               filePath: 'packages/agent/src/agent.ts',
               githubUrl:
-                'https://github.com/earendil-works/pi/blob/main/packages/agent/src/agent.ts#L398-L425',
+                'https://github.com/earendil-works/pi/blob/v1.5.2/packages/agent/src/agent.ts',
               language: 'ts',
               code: `async continue(): Promise<void> {
   const lastMessage = this._state.messages[this._state.messages.length - 1];
@@ -2820,7 +2725,7 @@ result: createErrorToolResult(
   }
   await this.runContinuation(); // -> runAgentLoopContinue()
 }`,
-              caption: 'packages/agent/src/agent.ts 第 398–425 行',
+              caption: 'packages/agent/src/agent.ts continue() 的教学摘编',
             },
             diffs: [
               { kind: 'add', text: '末尾为 `user` / `toolResult` → 直接进入 `agentLoopContinue()` 无损续跑' },
@@ -2868,8 +2773,8 @@ result: createErrorToolResult(
             recapTable: [
               {
                 question: '用户中途 Abort 后如何保住会话？',
-                decision: '`prepareToolCall` 首行检查 `signal.aborted` 并补齐 `toolResult`',
-                because: '消除悬空 `toolCall`，保证后续请求不被 Provider HTTP 400 拒收',
+                decision: 'v1.5.2 可提前结束批次；主分支补齐未执行调用的结果',
+                because: '让已记录的工具调用与结果保持配对，减少供应商拒绝历史消息的风险',
               },
               {
                 question: '模型触及最大输出长度怎么防误操作？',
@@ -2889,7 +2794,7 @@ result: createErrorToolResult(
             ],
             kpis: [
               { label: '核心不变量', value: '4 道强保障', status: 'good' },
-              { label: '悬空工具数', value: '恒为 0', status: 'good' },
+              { label: 'Abort 配对修复', value: '主分支', status: 'good' },
               { label: '状态锁死概率', value: '0 (finally 释放)', status: 'good' },
               { label: '截断误执行', value: '0 (length 熔断)', status: 'good' },
             ],
@@ -2900,11 +2805,11 @@ result: createErrorToolResult(
               kind: 'iso-flow',
               title: 'Pi 生产级容错四道防线总览',
               nodes: [
-                { id: 'g1', x: 185, y: 155, label: '1. Abort 补齐', sublabel: '零悬空 toolResult', icon: 'shield', tone: 'green', active: true },
+                { id: 'g1', x: 185, y: 155, label: '1. Abort 补齐', sublabel: '主分支配对修复', icon: 'shield', tone: 'green', active: true },
                 { id: 'g2', x: 500, y: 155, label: '2. Length 熔断', sublabel: '绝不跑残缺参数', icon: 'alert', tone: 'orange', active: true },
                 { id: 'g3', x: 815, y: 155, label: '3. 工具全隔离', sublabel: '5 类失败转 isError', icon: 'wrench', tone: 'blue', active: true },
                 { id: 'g4', x: 340, y: 390, label: '4. 硬退出 + finally', sublabel: '永不卡死 isStreaming', icon: 'check', tone: 'violet', active: true },
-                { id: 'ok', x: 675, y: 390, label: '可无损 Continue', sublabel: '会话永远合法可续跑', icon: 'loop', tone: 'green', size: 'lg', active: true },
+                { id: 'ok', x: 675, y: 390, label: '可无损 Continue', sublabel: '按会话末尾状态续跑', icon: 'loop', tone: 'green', size: 'lg', active: true },
               ],
               edges: [
                 { from: 'g1', to: 'ok', packetColor: PALETTE.green, status: 'active' },

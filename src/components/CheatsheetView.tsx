@@ -43,7 +43,7 @@ function DoubleLoopMasterMap() {
     <div className="master-map-wrap">
       <svg
         className="master-map-svg"
-        viewBox="0 0 980 416"
+        viewBox="0 0 980 436"
         role="img"
         aria-label="Pi Agent Loop 双层控制流总览图"
       >
@@ -75,9 +75,9 @@ function DoubleLoopMasterMap() {
         {/* Outer Loop Container */}
         <rect
           x="16"
-          y="58"
+          y="62"
           width="948"
-          height="344"
+          height="362"
           rx="12"
           fill="var(--blue)"
           fillOpacity="0.22"
@@ -86,9 +86,9 @@ function DoubleLoopMasterMap() {
           strokeDasharray="6 4"
         />
         <rect
-          x="28"
-          y="46"
-          width="278"
+          x="200"
+          y="51"
+          width="296"
           height="22"
           rx="5"
           fill="var(--blue)"
@@ -96,9 +96,9 @@ function DoubleLoopMasterMap() {
           strokeWidth="1.3"
         />
         <text
-          x="38"
-          y="61"
-          fontSize="10.5"
+          x="212"
+          y="66"
+          fontSize="10.2"
           fontWeight="800"
           fill="var(--ink)"
         >
@@ -107,10 +107,10 @@ function DoubleLoopMasterMap() {
 
         {/* Inner Loop Container */}
         <rect
-          x="36"
-          y="92"
-          width="740"
-          height="214"
+          x="34"
+          y="98"
+          width="746"
+          height="210"
           rx="10"
           fill="var(--green)"
           fillOpacity="0.24"
@@ -119,9 +119,9 @@ function DoubleLoopMasterMap() {
           strokeDasharray="5 4"
         />
         <rect
-          x="48"
-          y="80"
-          width="396"
+          x="200"
+          y="87"
+          width="524"
           height="22"
           rx="5"
           fill="var(--green)"
@@ -129,9 +129,9 @@ function DoubleLoopMasterMap() {
           strokeWidth="1.3"
         />
         <text
-          x="58"
-          y="95"
-          fontSize="10.5"
+          x="212"
+          y="102"
+          fontSize="9.8"
           fontWeight="800"
           fill="var(--ink)"
         >
@@ -139,12 +139,12 @@ function DoubleLoopMasterMap() {
         </text>
 
         {/* Entry Node */}
-        <g transform="translate(26, 8)">
+        <g transform="translate(36, 10)">
           <rect
             x="2"
             y="2.5"
-            width="234"
-            height="30"
+            width="236"
+            height="28"
             rx="6"
             fill="var(--edge)"
             opacity="0.9"
@@ -152,18 +152,18 @@ function DoubleLoopMasterMap() {
           <rect
             x="0"
             y="0"
-            width="234"
-            height="30"
+            width="236"
+            height="28"
             rx="6"
             fill="var(--sheet)"
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
           <text
-            x="117"
-            y="19"
+            x="118"
+            y="18"
             textAnchor="middle"
-            fontSize="11"
+            fontSize="10.6"
             fontWeight="800"
             fill="var(--ink)"
           >
@@ -171,164 +171,173 @@ function DoubleLoopMasterMap() {
           </text>
         </g>
 
-        {/* Initial steering poll note */}
+        {/* Prelim note pill to the right of Entry Node */}
         <path
-          d="M 260 23 L 352 23 L 352 122"
+          d="M 272 24 L 296 24"
           fill="none"
           stroke="var(--edge)"
-          strokeWidth="1.6"
-          markerEnd={`url(#${arrowId})`}
+          strokeWidth="1.5"
+          strokeDasharray="3 2"
         />
         <rect
-          x="284"
-          y="11"
-          width="244"
-          height="22"
+          x="296"
+          y="10"
+          width="316"
+          height="28"
           rx="5"
           fill="var(--paper-2)"
           stroke="var(--line-strong)"
-          strokeWidth="1"
+          strokeWidth="1.2"
         />
         <text
-          x="406"
-          y="25.5"
+          x="454"
+          y="28"
           textAnchor="middle"
-          fontSize="10"
+          fontSize="9.6"
           fontWeight="700"
           fill="var(--muted)"
         >
           预检 getSteeringMessages() · emit agent_start
         </text>
 
+        {/* Unobstructed vertical entry arrow straight into Box 1 */}
+        <path
+          d="M 115 38 L 115 128"
+          fill="none"
+          stroke="var(--edge)"
+          strokeWidth="1.7"
+          markerEnd={`url(#${arrowId})`}
+        />
+
         {/* Inner Step 1: Turn Setup & Compaction */}
-        <g transform="translate(56, 122)">
-          <rect x="2" y="2.5" width="164" height="66" rx="7" fill="var(--edge)" />
+        <g transform="translate(46, 132)">
+          <rect x="2" y="2.5" width="204" height="66" rx="7" fill="var(--edge)" />
           <rect
             x="0"
             y="0"
-            width="164"
+            width="204"
             height="66"
             rx="7"
             fill="var(--sheet)"
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="82" y="20" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--ink)">
+          <text x="102" y="20" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             1. 轮次准备 &amp; 增量声明
           </text>
-          <text x="82" y="37" textAnchor="middle" fontSize="9.8" fill="var(--ink-2)">
+          <text x="102" y="37" textAnchor="middle" fontSize="8.8" fill="var(--ink-2)">
             prepareNextTurn() 自动压缩
           </text>
-          <text x="82" y="53" textAnchor="middle" fontSize="9.8" fill="var(--muted)">
+          <text x="102" y="53" textAnchor="middle" fontSize="8.8" fill="var(--muted)">
             declareToolChanges() · turn_start
           </text>
         </g>
 
         {/* Arrow 1 -> 2 */}
         <line
-          x1="220"
-          y1="155"
-          x2="254"
-          y2="155"
+          x1="250"
+          y1="165"
+          x2="270"
+          y2="165"
           stroke="var(--edge)"
           strokeWidth="1.6"
           markerEnd={`url(#${arrowId})`}
         />
 
         {/* Inner Step 2: Message Pipeline + LLM Stream */}
-        <g transform="translate(258, 122)">
-          <rect x="2" y="2.5" width="188" height="66" rx="7" fill="var(--edge)" />
+        <g transform="translate(274, 132)">
+          <rect x="2" y="2.5" width="216" height="66" rx="7" fill="var(--edge)" />
           <rect
             x="0"
             y="0"
-            width="188"
+            width="216"
             height="66"
             rx="7"
             fill="var(--violet)"
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="94" y="20" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--ink)">
+          <text x="108" y="20" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             2. 流水线 &amp; LLM 流式推理
           </text>
-          <text x="94" y="37" textAnchor="middle" fontSize="9.6" fill="var(--ink-2)">
+          <text x="108" y="37" textAnchor="middle" fontSize="8.8" fill="var(--ink-2)">
             transformContext → convertToLlm
           </text>
-          <text x="94" y="53" textAnchor="middle" fontSize="9.6" fill="var(--ink-2)">
+          <text x="108" y="53" textAnchor="middle" fontSize="8.8" fill="var(--ink-2)">
             prepareRequest → streamFn (pi-ai)
           </text>
         </g>
 
         {/* Arrow 2 -> 3 (Tool Execution) */}
         <line
-          x1="446"
-          y1="155"
-          x2="482"
-          y2="155"
+          x1="490"
+          y1="165"
+          x2="510"
+          y2="165"
           stroke="var(--edge)"
           strokeWidth="1.6"
           markerEnd={`url(#${arrowId})`}
         />
 
         {/* Inner Step 3: Tool Batch Execution */}
-        <g transform="translate(486, 122)">
-          <rect x="2" y="2.5" width="268" height="66" rx="7" fill="var(--edge)" />
+        <g transform="translate(514, 132)">
+          <rect x="2" y="2.5" width="252" height="66" rx="7" fill="var(--edge)" />
           <rect
             x="0"
             y="0"
-            width="268"
+            width="252"
             height="66"
             rx="7"
             fill="var(--orange)"
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="134" y="20" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--ink)">
+          <text x="126" y="20" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             3. 工具批次执行 (默认 parallel)
           </text>
-          <text x="134" y="37" textAnchor="middle" fontSize="9.6" fill="var(--ink-2)">
+          <text x="126" y="37" textAnchor="middle" fontSize="8.8" fill="var(--ink-2)">
             length 截断守卫 → 串行预检 beforeToolCall
           </text>
-          <text x="134" y="53" textAnchor="middle" fontSize="9.6" fill="var(--ink-2)">
+          <text x="126" y="53" textAnchor="middle" fontSize="8.8" fill="var(--ink-2)">
             并发 Promise.all → 源码序 append toolResult
           </text>
         </g>
 
-        {/* Hard Exit Branch from Step 2 */}
+        {/* Hard Exit Branch from Step 2 (clear corridor y = 118) */}
         <path
-          d="M 405 122 L 405 104 L 800 104 L 800 132"
+          d="M 430 132 L 430 118 L 872 118 L 872 132"
           fill="none"
           stroke="var(--rose-stroke)"
           strokeWidth="1.5"
           strokeDasharray="4 3"
           markerEnd={`url(#${arrowRustId})`}
         />
-        <g transform="translate(794, 134)">
-          <rect x="2" y="2.5" width="154" height="58" rx="7" fill="var(--edge)" />
+        <g transform="translate(796, 136)">
+          <rect x="2" y="2.5" width="152" height="58" rx="7" fill="var(--edge)" />
           <rect
             x="0"
             y="0"
-            width="154"
+            width="152"
             height="58"
             rx="7"
             fill="var(--rose)"
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="77" y="21" textAnchor="middle" fontSize="10.8" fontWeight="800" fill="var(--ink)">
+          <text x="76" y="21" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             硬退出 Hard Exit
           </text>
-          <text x="77" y="37" textAnchor="middle" fontSize="9.5" fill="var(--ink-2)">
+          <text x="76" y="37" textAnchor="middle" fontSize="9.2" fill="var(--ink-2)">
             error / aborted
           </text>
-          <text x="77" y="50" textAnchor="middle" fontSize="9.5" fill="var(--ink-2)">
+          <text x="76" y="50" textAnchor="middle" fontSize="9.2" fill="var(--ink-2)">
             turn_end → agent_end
           </text>
         </g>
 
         {/* Arrow 3 -> 4 (finishTurn + Steering) */}
         <path
-          d="M 620 188 L 620 222"
+          d="M 640 198 L 640 228"
           fill="none"
           stroke="var(--edge)"
           strokeWidth="1.6"
@@ -336,7 +345,7 @@ function DoubleLoopMasterMap() {
         />
 
         {/* Inner Step 4: finishTurn + Steering Poll */}
-        <g transform="translate(432, 226)">
+        <g transform="translate(444, 232)">
           <rect x="2" y="2.5" width="322" height="62" rx="7" fill="var(--edge)" />
           <rect
             x="0"
@@ -348,53 +357,63 @@ function DoubleLoopMasterMap() {
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="161" y="20" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--ink)">
+          <text x="161" y="20" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             4. 轮次收尾 &amp; 转向轮询 (批后生效)
           </text>
-          <text x="161" y="37" textAnchor="middle" fontSize="9.6" fill="var(--ink-2)">
+          <text x="161" y="37" textAnchor="middle" fontSize="9.1" fill="var(--ink-2)">
             finishTurn() · emit turn_end · getSteeringMessages()
           </text>
-          <text x="161" y="52" textAnchor="middle" fontSize="9.4" fill="var(--ink-2)">
+          <text x="161" y="52" textAnchor="middle" fontSize="8.8" fill="var(--ink-2)">
             绝不跳过当前批次工具；若仍有工具或转向消息则续跑内层
           </text>
         </g>
 
         {/* Inner Loop Back Edge */}
         <path
-          d="M 432 257 L 138 257 L 138 192"
+          d="M 444 263 L 126 263 L 126 202"
           fill="none"
           stroke="var(--green-stroke)"
           strokeWidth="1.9"
           markerEnd={`url(#${arrowId})`}
         />
         <rect
-          x="166"
-          y="244"
-          width="232"
+          x="146"
+          y="251"
+          width="276"
           height="24"
           rx="5"
           fill="var(--mint)"
           stroke="var(--edge)"
           strokeWidth="1.2"
         />
-        <text x="282" y="259.5" textAnchor="middle" fontSize="10" fontWeight="800" fill="var(--ink)">
+        <text x="284" y="266.5" textAnchor="middle" fontSize="9.2" fontWeight="800" fill="var(--ink)">
           hasMoreToolCalls || steering.length &gt; 0
         </text>
 
         {/* Inner -> Outer FollowUp Check */}
         <path
-          d="M 592 288 L 592 324"
+          d="M 592 294 L 592 348"
           fill="none"
           stroke="var(--edge)"
           strokeWidth="1.6"
           markerEnd={`url(#${arrowId})`}
         />
-        <text x="602" y="314" fontSize="9.5" fontWeight="700" fill="var(--muted)">
+        <rect
+          x="502"
+          y="316"
+          width="180"
+          height="22"
+          rx="5"
+          fill="var(--sheet)"
+          stroke="var(--line-strong)"
+          strokeWidth="1.2"
+        />
+        <text x="592" y="330.5" textAnchor="middle" fontSize="9.2" fontWeight="700" fill="var(--muted)">
           内层静默 (无工具且无转向)
         </text>
 
         {/* Outer Step 5: Follow-up & Continuation */}
-        <g transform="translate(362, 328)">
+        <g transform="translate(362, 352)">
           <rect x="2" y="2.5" width="388" height="58" rx="7" fill="var(--edge)" />
           <rect
             x="0"
@@ -406,20 +425,20 @@ function DoubleLoopMasterMap() {
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="194" y="20" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--ink)">
+          <text x="194" y="20" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             5. 外层跟进检查 · getFollowUpMessages()
           </text>
-          <text x="194" y="37" textAnchor="middle" fontSize="9.6" fill="var(--ink-2)">
+          <text x="194" y="37" textAnchor="middle" fontSize="9.2" fill="var(--ink-2)">
             有排队跟进 (Alt+Enter) 或 finishTurn=&quot;continue&quot; → 重启内层
           </text>
-          <text x="194" y="51" textAnchor="middle" fontSize="9.4" fill="var(--ink-2)">
+          <text x="194" y="51" textAnchor="middle" fontSize="9.1" fill="var(--ink-2)">
             均为空 → break 退出双层循环
           </text>
         </g>
 
         {/* Outer Loop Back Edge */}
         <path
-          d="M 362 357 L 78 357 L 78 192"
+          d="M 362 381 L 78 381 L 78 202"
           fill="none"
           stroke="var(--blue-stroke)"
           strokeWidth="1.8"
@@ -428,47 +447,47 @@ function DoubleLoopMasterMap() {
         />
         <rect
           x="104"
-          y="345"
-          width="216"
-          height="23"
+          y="369"
+          width="224"
+          height="24"
           rx="5"
           fill="var(--sheet)"
           stroke="var(--blue-stroke)"
           strokeWidth="1.2"
         />
-        <text x="212" y="360" textAnchor="middle" fontSize="9.8" fontWeight="800" fill="var(--ink)">
+        <text x="216" y="384.5" textAnchor="middle" fontSize="9.2" fontWeight="800" fill="var(--ink)">
           注入 followUpMessages → 重进内层
         </text>
 
         {/* Final Agent End */}
         <line
           x1="750"
-          y1="357"
-          x2="790"
-          y2="357"
+          y1="381"
+          x2="792"
+          y2="381"
           stroke="var(--edge)"
           strokeWidth="1.6"
           markerEnd={`url(#${arrowId})`}
         />
-        <g transform="translate(794, 328)">
-          <rect x="2" y="2.5" width="154" height="58" rx="7" fill="var(--edge)" />
+        <g transform="translate(796, 352)">
+          <rect x="2" y="2.5" width="152" height="58" rx="7" fill="var(--edge)" />
           <rect
             x="0"
             y="0"
-            width="154"
+            width="152"
             height="58"
             rx="7"
             fill="var(--sheet)"
             stroke="var(--edge)"
             strokeWidth="1.5"
           />
-          <text x="77" y="21" textAnchor="middle" fontSize="11" fontWeight="800" fill="var(--ink)">
+          <text x="76" y="21" textAnchor="middle" fontSize="10.6" fontWeight="800" fill="var(--ink)">
             agent_end
           </text>
-          <text x="77" y="37" textAnchor="middle" fontSize="9.5" fill="var(--ink-2)">
+          <text x="76" y="37" textAnchor="middle" fontSize="9.2" fill="var(--ink-2)">
             {'{ messages: newMessages }'}
           </text>
-          <text x="77" y="51" textAnchor="middle" fontSize="9.3" fill="var(--muted)">
+          <text x="76" y="51" textAnchor="middle" fontSize="9" fill="var(--muted)">
             等待 subscribe 监听完成
           </text>
         </g>
@@ -548,9 +567,9 @@ export function CheatsheetView({
           </div>
         )}
 
-        <p className="cs-disambiguation">
+        <p className="cs-scope-note">
           <strong>范围说明：</strong>
-          {renderRichText(hero.disambiguationNote)}{' '}
+          {renderRichText(hero.scopeNote)}{' '}
           <span style={{ opacity: 0.8 }}>（{hero.repoNote}）</span>
         </p>
       </section>

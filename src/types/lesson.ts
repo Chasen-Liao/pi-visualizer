@@ -508,7 +508,7 @@ export interface CheatsheetData {
     title: string;
     subtitle: string;
     repoNote: string;
-    disambiguationNote: string;
+    scopeNote: string;
     stats: {
       label: string;
       value: string;

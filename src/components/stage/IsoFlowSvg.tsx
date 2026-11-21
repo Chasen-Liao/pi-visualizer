@@ -166,6 +166,12 @@ function truncateLine(text: string, maxWidthPx: number, fontSize: number): strin
   return truncated ? truncated.trimEnd() + '…' : '…';
 }
 
+function tokenizeForWrap(text: string): string[] {
+  // Keep ASCII identifiers/words intact so English words never split mid-word across lines
+  const matches = text.match(/[A-Za-z0-9_().]+|\s+|./g);
+  return matches ?? [text];
+}
+
 function wrapText(text: string, maxWidthPx: number, fontSize: number, maxLines = 2): string[] {
   if (measureTextPx(text, fontSize) <= maxWidthPx) {
     return [text];
@@ -174,26 +180,44 @@ function wrapText(text: string, maxWidthPx: number, fontSize: number, maxLines =
     return [truncateLine(text, maxWidthPx, fontSize)];
   }
 
+  const tokens = tokenizeForWrap(text);
   const lines: string[] = [];
-  let idx = 0;
-  while (idx < text.length && lines.length < maxLines - 1) {
+  let tIdx = 0;
+
+  while (tIdx < tokens.length && lines.length < maxLines - 1) {
     let current = '';
-    while (idx < text.length) {
-      const ch = text[idx];
-      const next = current + ch;
-      if (measureTextPx(next, fontSize) > maxWidthPx && current.length > 0) {
+    while (tIdx < tokens.length) {
+      const tok = tokens[tIdx];
+      if (current.length === 0 && /^\s+$/.test(tok)) {
+        tIdx++;
+        continue;
+      }
+      const next = current + tok;
+      if (measureTextPx(next, fontSize) <= maxWidthPx) {
+        current = next;
+        tIdx++;
+      } else if (current.length === 0) {
+        // Single token exceeds whole line width: split character by character
+        let part = '';
+        let consumedChars = 0;
+        for (const ch of tok) {
+          if (measureTextPx(part + ch, fontSize) > maxWidthPx && part.length > 0) {
+            break;
+          }
+          part += ch;
+          consumedChars++;
+        }
+        current = part;
+        tokens[tIdx] = tok.slice(consumedChars);
+        break;
+      } else {
         break;
       }
-      current = next;
-      idx++;
     }
     lines.push(current.trimEnd());
-    while (idx < text.length && text[idx] === ' ') {
-      idx++;
-    }
   }
 
-  const rest = text.slice(idx).trim();
+  const rest = tokens.slice(tIdx).join('').trim();
   if (rest) {
     lines.push(truncateLine(rest, maxWidthPx, fontSize));
   }
@@ -205,6 +229,8 @@ interface NodeBox {
   h: number;
   depth: number;
   rx: number;
+  titleFs: number;
+  subFs: number;
   labelLines: string[];
   subLines: string[];
   hasIcon: boolean;
@@ -217,29 +243,34 @@ function computeNodeBox(node: IsoNode): NodeBox {
 
   const base =
     size === 'sm'
-      ? { minW: 118, maxW: 166, minH: 52, depth: 6, rx: 10, titleFs: 11.5, subFs: 9.6 }
+      ? { minW: 118, maxW: 174, minH: 52, depth: 6, rx: 10, titleFs: 11.5, subFs: 9.6 }
       : size === 'lg'
-        ? { minW: 174, maxW: 224, minH: 76, depth: 9, rx: 12, titleFs: 13, subFs: 10.2 }
+        ? { minW: 174, maxW: 236, minH: 76, depth: 9, rx: 12, titleFs: 13, subFs: 10.2 }
         : size === 'platform'
-          ? { minW: 214, maxW: 274, minH: 84, depth: 10, rx: 13, titleFs: 13.5, subFs: 10.5 }
-          : { minW: 146, maxW: 196, minH: 66, depth: 8, rx: 11, titleFs: 12.2, subFs: 9.8 };
+          ? { minW: 214, maxW: 280, minH: 84, depth: 10, rx: 13, titleFs: 13.5, subFs: 10.5 }
+          : { minW: 146, maxW: 226, minH: 66, depth: 8, rx: 11, titleFs: 12.2, subFs: 9.8 };
 
-  const titleRaw = measureTextPx(node.label, base.titleFs) + 28 + iconPad;
-  const subRaw = node.sublabel ? measureTextPx(node.sublabel, base.subFs) + 26 + iconPad : 0;
+  // Slightly step down title font size for long single-token ASCII identifiers (e.g. streamAssistantResponse)
+  const hasLongIdentifier = /[A-Za-z0-9_()]{18,}/.test(node.label);
+  const titleFs = hasLongIdentifier ? base.titleFs - 0.8 : base.titleFs;
+  const subFs = base.subFs;
+
+  const titleRaw = measureTextPx(node.label, titleFs) + 28 + iconPad;
+  const subRaw = node.sublabel ? measureTextPx(node.sublabel, subFs) + 26 + iconPad : 0;
   const w = Math.round(Math.max(base.minW, Math.min(base.maxW, Math.max(titleRaw, subRaw))));
 
   const textAvailW = w - 22 - iconPad;
-  const labelLines = wrapText(node.label, textAvailW, base.titleFs, 2);
-  const subLines = node.sublabel ? wrapText(node.sublabel, textAvailW, base.subFs, 2) : [];
+  const labelLines = wrapText(node.label, textAvailW, titleFs, 2);
+  const subLines = node.sublabel ? wrapText(node.sublabel, textAvailW, subFs, 2) : [];
 
   const contentH =
-    labelLines.length * (base.titleFs + 3.5) +
-    (subLines.length > 0 ? 4 + subLines.length * (base.subFs + 2.5) : 0) +
+    labelLines.length * (titleFs + 3.5) +
+    (subLines.length > 0 ? 4 + subLines.length * (subFs + 2.5) : 0) +
     20;
 
   const h = Math.round(Math.max(base.minH, contentH));
 
-  return { w, h, depth: base.depth, rx: base.rx, labelLines, subLines, hasIcon };
+  return { w, h, depth: base.depth, rx: base.rx, titleFs, subFs, labelLines, subLines, hasIcon };
 }
 
 function resolveBorderPoint(
@@ -277,7 +308,7 @@ function computeEdgeGeometry(
   toNode: IsoNode,
   toBox: NodeBox,
   edge: IsoEdge,
-  bidirectionalSign: number
+  isBidirectional: boolean
 ): ComputedEdge {
   const waypoints = edge.via ?? [];
   const firstTarget = waypoints.length > 0 ? waypoints[0] : [toNode.x, toNode.y];
@@ -363,20 +394,28 @@ function computeEdgeGeometry(
     return { d, midX: fromNode.x, midY: topY + 6, length: 120 };
   }
 
-  const shouldCurve = Boolean(edge.curved) || bidirectionalSign !== 0;
+  const shouldCurve = Boolean(edge.curved) || isBidirectional;
 
   if (shouldCurve) {
-    const dir = bidirectionalSign !== 0 ? bidirectionalSign : 1;
-    const bend = Math.min(44, Math.max(20, dist * 0.16)) * dir;
+    // Note: (dx, dy) already reverses sign between A->B and B->A, so the left-hand normal
+    // (-dy/dist, dx/dist) automatically bows opposite directions for bidirectional pairs!
     const nx = -dy / dist;
     const ny = dx / dist;
-    const cx = (sx + ex) / 2 + nx * bend;
-    const cy = (sy + ey) / 2 + ny * bend;
-    const d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+    const portShift = isBidirectional ? 7 : 0;
+    const csx = sx + nx * portShift;
+    const csy = sy + ny * portShift;
+    const cex = ex + nx * portShift;
+    const cey = ey + ny * portShift;
+    const bend = isBidirectional
+      ? Math.min(52, Math.max(30, dist * 0.24))
+      : Math.min(44, Math.max(22, dist * 0.17));
+    const cx = (csx + cex) / 2 + nx * bend;
+    const cy = (csy + cey) / 2 + ny * bend;
+    const d = `M ${csx.toFixed(1)} ${csy.toFixed(1)} Q ${cx.toFixed(1)} ${cy.toFixed(1)} ${cex.toFixed(1)} ${cey.toFixed(1)}`;
     // Quadratic Bézier midpoint at t = 0.5
-    const midX = 0.25 * sx + 0.5 * cx + 0.25 * ex;
-    const midY = 0.25 * sy + 0.5 * cy + 0.25 * ey;
-    return { d, midX, midY, length: Math.max(40, dist * 1.1) };
+    const midX = 0.25 * csx + 0.5 * cx + 0.25 * cex;
+    const midY = 0.25 * csy + 0.5 * cy + 0.25 * cey;
+    return { d, midX, midY, length: Math.max(40, dist * 1.12) };
   }
 
   const d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} L ${ex.toFixed(1)} ${ey.toFixed(1)}`;
@@ -741,52 +780,52 @@ function renderZone(zone: IsoZone, idx: number) {
 function renderCallout(callout: IsoCallout, idx: number) {
   const tone: StageTone = callout.tone ?? 'neutral';
   const palette = NODE_TONES[tone];
-  const lines = wrapText(callout.text, 220, 10.6, 2);
+  const lines = wrapText(callout.text, 296, 10.6, 2);
   const textW = Math.max(...lines.map((l) => measureTextPx(l, 10.6)));
-  const w = Math.round(Math.max(76, textW + 24));
-  const h = lines.length > 1 ? 38 : 25;
+  const w = Math.round(Math.max(82, textW + 26));
+  const h = lines.length > 1 ? 42 : 26;
   const cx = Math.max(w / 2 + 12, Math.min(1000 - w / 2 - 12, callout.x));
   const cy = Math.max(h / 2 + 12, Math.min(560 - h / 2 - 12, callout.y));
 
   return (
-    <g
-      key={`callout-${idx}`}
-      className="stage-node-enter"
-      style={{ animationDelay: `${180 + idx * 45}ms` }}
-      transform={`translate(${cx - w / 2}, ${cy - h / 2})`}
-    >
-      <rect
-        x={2}
-        y={2.5}
-        width={w}
-        height={h}
-        rx={7}
-        fill="var(--stage-shadow-ambient)"
-      />
-      <rect
-        x={0}
-        y={0}
-        width={w}
-        height={h}
-        rx={7}
-        fill={tone === 'neutral' ? 'var(--sheet)' : palette.face}
-        stroke="var(--edge)"
-        strokeWidth={1.2}
-      />
-      <text
-        x={w / 2}
-        y={lines.length > 1 ? 15.5 : 16.5}
-        textAnchor="middle"
-        fontSize={10.5}
-        fontWeight={700}
-        fill="var(--ink)"
+    <g key={`callout-${idx}`} transform={`translate(${cx - w / 2}, ${cy - h / 2})`}>
+      <g
+        className="stage-node-enter"
+        style={{ animationDelay: `${180 + idx * 45}ms` }}
       >
-        {lines.map((line, lineIdx) => (
-          <tspan key={lineIdx} x={w / 2} dy={lineIdx === 0 ? 0 : 14}>
-            {line}
-          </tspan>
-        ))}
-      </text>
+        <rect
+          x={2}
+          y={2.5}
+          width={w}
+          height={h}
+          rx={7}
+          fill="var(--stage-shadow-ambient)"
+        />
+        <rect
+          x={0}
+          y={0}
+          width={w}
+          height={h}
+          rx={7}
+          fill={tone === 'neutral' ? 'var(--sheet)' : palette.face}
+          stroke="var(--edge)"
+          strokeWidth={1.2}
+        />
+        <text
+          x={w / 2}
+          y={lines.length > 1 ? 16.5 : 17}
+          textAnchor="middle"
+          fontSize={10.5}
+          fontWeight={700}
+          fill="var(--ink)"
+        >
+          {lines.map((line, lineIdx) => (
+            <tspan key={lineIdx} x={w / 2} dy={lineIdx === 0 ? 0 : 15}>
+              {line}
+            </tspan>
+          ))}
+        </text>
+      </g>
     </g>
   );
 }
@@ -839,11 +878,11 @@ function renderMiniChart(chart: IsoMiniChart, uid: string) {
   const gradId = `${uid}-mini-area`;
 
   return (
-    <g
-      className="stage-node-enter"
-      style={{ animationDelay: '210ms' }}
-      transform={`translate(${cardX}, ${cardY})`}
-    >
+    <g transform={`translate(${cardX}, ${cardY})`}>
+      <g
+        className="stage-node-enter"
+        style={{ animationDelay: '210ms' }}
+      >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={strokeColor} stopOpacity="0.3" />
@@ -1008,6 +1047,7 @@ function renderMiniChart(chart: IsoMiniChart, uid: string) {
       >
         {chart.yLabel}
       </text>
+      </g>
     </g>
   );
 }
@@ -1049,8 +1089,7 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
       if (!fromNode || !toNode || !fromBox || !toBox) return null;
 
       const hasReverse = pairSet.has(`${edge.to}->${edge.from}`);
-      const biSign = hasReverse ? (edge.from < edge.to ? 1 : -1) : 0;
-      const geom = computeEdgeGeometry(fromNode, fromBox, toNode, toBox, edge, biSign);
+      const geom = computeEdgeGeometry(fromNode, fromBox, toNode, toBox, edge, hasReverse);
 
       const status = edge.status ?? 'normal';
       const resolvedPacket = edge.packetColor
@@ -1229,11 +1268,7 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
           const top = node.y - box.h / 2;
           const isActive = Boolean(node.active);
           const isDim = Boolean(node.dimmed);
-          const size = node.size ?? 'md';
-          const titleFs =
-            size === 'sm' ? 11.5 : size === 'lg' ? 13 : size === 'platform' ? 13.5 : 12.2;
-          const subFs =
-            size === 'sm' ? 9.6 : size === 'lg' ? 10.2 : size === 'platform' ? 10.5 : 9.8;
+          const { titleFs, subFs } = box;
 
           const textStartX = box.hasIcon ? left + 39 : node.x;
           const textAnchor = box.hasIcon ? 'start' : 'middle';
@@ -1241,6 +1276,9 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
             box.labelLines.length * (titleFs + 3) +
             (box.subLines.length > 0 ? 4 + box.subLines.length * (subFs + 2.5) : 0);
           const firstTitleY = top + (box.h - totalTextH) / 2 + titleFs * 0.88;
+          const right = left + box.w;
+          const bottom = top + box.h;
+          const side = Math.round(box.depth * 0.85);
 
           return (
             <g
@@ -1258,7 +1296,7 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
                 <rect
                   x={left - 5}
                   y={top - 5}
-                  width={box.w + 10}
+                  width={box.w + side + 10}
                   height={box.h + box.depth + 10}
                   rx={box.rx + 4}
                   fill="none"
@@ -1270,24 +1308,28 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
 
               {/* Layer 1: Grounded ambient drop shadow */}
               <rect
-                x={left + 3}
-                y={top + box.depth + 4.5}
+                x={left + side + 3}
+                y={top + box.depth + 4}
                 width={box.w}
                 height={box.h}
                 rx={box.rx}
                 fill="var(--stage-shadow-ambient)"
               />
 
-              {/* Layer 2: 3D darker extrusion side lip */}
-              <rect
-                x={left}
-                y={top + box.depth}
-                width={box.w}
-                height={box.h}
-                rx={box.rx}
+              {/* Project the card into two visible faces while keeping its text upright. */}
+              <path
+                d={`M ${left + box.rx} ${bottom} H ${right - box.rx} L ${right + side - box.rx} ${bottom + box.depth} H ${left + side + box.rx} Z`}
                 fill={palette.lip}
                 stroke="var(--edge)"
-                strokeWidth={isActive ? 2 : 1.5}
+                strokeWidth={1.4}
+                strokeLinejoin="round"
+              />
+              <path
+                d={`M ${right - box.rx} ${top} Q ${right} ${top} ${right} ${top + box.rx} L ${right + side} ${top + box.rx + box.depth} V ${bottom + box.depth - box.rx} Q ${right + side} ${bottom + box.depth} ${right + side - box.rx} ${bottom + box.depth} L ${right - box.rx} ${bottom} Z`}
+                fill={palette.lip}
+                stroke="var(--edge)"
+                strokeWidth={1.4}
+                strokeLinejoin="round"
               />
 
               {/* Layer 3: Top tactile face */}
@@ -1474,16 +1516,42 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
         })}
       </g>
 
-      {/* 5. Floating Edge Labels (rendered above edges & nodes for crisp legibility) */}
+      {/* 5. Floating Edge Labels (with anti-collision separation for close/opposing labels) */}
       <g>
-        {resolvedEdges.map(({ edge, idx, geom, status, strokeColor }) => {
-          if (!edge.label) return null;
-          const labelText = wrapText(edge.label, 148, 9.8, 1)[0];
-          const lw = Math.max(36, measureTextPx(labelText, 9.8) + 14);
-          const lx = Math.max(10, Math.min(1000 - lw - 10, geom.midX - lw / 2));
-          const ly = Math.max(8, Math.min(540, geom.midY - 10));
+        {(() => {
+          const placedLabels = resolvedEdges
+            .map(({ edge, idx, geom, status, strokeColor }) => {
+              if (!edge.label) return null;
+              const labelText = wrapText(edge.label, 152, 9.8, 1)[0];
+              const lw = Math.max(36, measureTextPx(labelText, 9.8) + 14);
+              const lx = Math.max(10, Math.min(1000 - lw - 10, geom.midX - lw / 2));
+              const ly = Math.max(8, Math.min(540, geom.midY - 9.5));
+              return { idx, labelText, lw, lx, ly, status, strokeColor };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
 
-          return (
+          // Anti-collision pass: separate any two edge label pills whose bounding boxes overlap
+          for (let i = 0; i < placedLabels.length; i++) {
+            for (let j = i + 1; j < placedLabels.length; j++) {
+              const a = placedLabels[i];
+              const b = placedLabels[j];
+              const overlapX =
+                Math.min(a.lx + a.lw, b.lx + b.lw) - Math.max(a.lx, b.lx);
+              const overlapY = 20 - Math.abs(a.ly - b.ly);
+              if (overlapX > -6 && overlapY > 0) {
+                const shift = Math.ceil(overlapY / 2) + 4;
+                if (a.ly <= b.ly) {
+                  a.ly = Math.max(6, a.ly - shift);
+                  b.ly = Math.min(538, b.ly + shift);
+                } else {
+                  b.ly = Math.max(6, b.ly - shift);
+                  a.ly = Math.min(538, a.ly + shift);
+                }
+              }
+            }
+          }
+
+          return placedLabels.map(({ idx, labelText, lw, lx, ly, status, strokeColor }) => (
             <g
               key={`elabel-${idx}`}
               opacity={status === 'dimmed' ? 0.45 : 1}
@@ -1510,8 +1578,8 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
                 {labelText}
               </text>
             </g>
-          );
-        })}
+          ));
+        })()}
       </g>
 
       {/* 6. Floating Callout Pills */}

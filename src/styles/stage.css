@@ -69,8 +69,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 13px 16px 13px;
+  gap: 8px;
+  padding: 10px 14px 10px;
   background: var(--paper);
   overflow: hidden;
 }
@@ -84,7 +84,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
 }
 
 .stage-header-main {
@@ -92,15 +92,15 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .stage-breadcrumb {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--muted);
   letter-spacing: 0.01em;
@@ -126,7 +126,7 @@
 
 .stage-title {
   margin: 0;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1.24;
   letter-spacing: -0.02em;
@@ -138,8 +138,8 @@
 
 .stage-subtitle {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11.5px;
+  line-height: 1.38;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,20 +150,20 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding-top: 2px;
+  gap: 5px;
+  padding-top: 1px;
 }
 
 .stage-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 26px;
-  padding: 0 9px;
+  gap: 4px;
+  height: 23px;
+  padding: 0 7px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--edge);
   box-shadow: var(--pop-shadow-sm);
-  font-size: 11px;
+  font-size: 10.2px;
   font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
@@ -209,14 +209,15 @@
   overflow: hidden;
 }
 
-/* Top HUD Bar */
+/* Top HUD Bar — Single Compact Row on Desktop */
 .stage-hud {
   flex-shrink: 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 12px 6px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 7px 10px 4px;
   z-index: 4;
   position: relative;
 }
@@ -224,10 +225,11 @@
 .stage-kpis {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 7px;
+  flex-wrap: nowrap;
+  gap: 5px;
   min-width: 0;
-  flex: 1;
+  flex: 1 1 0;
+  overflow: hidden;
 }
 
 .kpi-chip {
@@ -235,11 +237,12 @@
   display: inline-flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
-  min-width: 88px;
-  max-width: 196px;
-  padding: 5px 10px 5px 12px;
-  border-radius: 7px;
+  gap: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 185px;
+  padding: 3px 7px 3px 9px;
+  border-radius: 6px;
   border: 1px solid var(--line-strong);
   background: var(--stage-hud-bg);
   backdrop-filter: blur(6px);
@@ -256,7 +259,7 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 3.5px;
+  width: 3px;
   background: var(--edge);
 }
 
@@ -281,11 +284,11 @@
 }
 
 .kpi-label {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.02em;
   color: var(--muted);
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -293,10 +296,10 @@
 
 .kpi-value {
   display: inline-block;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   color: var(--ink);
-  line-height: 1.25;
+  line-height: 1.22;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -335,14 +338,14 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .stage-ctrl-btn {
-  height: 30px;
-  padding: 0 9px;
-  font-size: 11.5px;
-  gap: 5px;
+  height: 27px;
+  padding: 0 7px;
+  font-size: 11px;
+  gap: 4px;
   white-space: nowrap;
 }
 
@@ -357,16 +360,16 @@
 }
 
 .stage-ctrl-btn .kbd {
-  height: 17px;
-  min-width: 17px;
-  font-size: 9.5px;
-  padding: 0 4px;
+  height: 16px;
+  min-width: 16px;
+  font-size: 9px;
+  padding: 0 3.5px;
 }
 
 .stage-zoom-group {
   display: inline-flex;
   align-items: center;
-  height: 30px;
+  height: 27px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--line-strong);
   background: var(--stage-hud-bg);
@@ -375,12 +378,12 @@
 
 .stage-zoom-btn {
   height: 100%;
-  min-width: 26px;
-  padding: 0 6px;
+  min-width: 22px;
+  padding: 0 4px;
   border: none;
   background: transparent;
   color: var(--ink-2);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   cursor: pointer;
   display: inline-flex;
@@ -400,10 +403,10 @@
 }
 
 .stage-zoom-readout {
-  min-width: 42px;
+  min-width: 37px;
   border-left: 1px solid var(--line);
   border-right: 1px solid var(--line);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--muted);
 }
@@ -461,6 +464,11 @@
   font-family: var(--font-mono);
 }
 
+.stage-canvas-transform > .stage-svg {
+  animation: stageSettle 0.5s var(--ease-snappy) both;
+  transform-origin: center;
+}
+
 /* Pause state freezes all CSS keyframe animations inside SVG */
 .stage-canvas--paused *,
 .stage-canvas--paused *::before,
@@ -468,21 +476,19 @@
   animation-play-state: paused !important;
 }
 
-/* SVG Entrance & Ambient Animations */
+/* SVG Entrance & Ambient Animations
+   Important: Never set CSS `transform` inside keyframes applied to SVG `<g transform="translate(...)">`
+   elements, because CSS `transform` (even `transform: none`) overrides the SVG `transform` attribute! */
 .stage-node-enter {
-  animation: stageNodePop 0.38s var(--ease-snappy) both;
-  transform-box: fill-box;
-  transform-origin: center center;
+  animation: stageNodePop 0.32s var(--ease-snappy) both;
 }
 
 .stage-edge-enter {
-  animation: stageFadeIn 0.32s ease both;
+  animation: stageFadeIn 0.28s ease both;
 }
 
 .stage-bar-enter {
-  animation: stageBarSlide 0.4s var(--ease-snappy) both;
-  transform-box: fill-box;
-  transform-origin: left center;
+  animation: stageBarSlide 0.32s var(--ease-snappy) both;
 }
 
 .stage-active-pulse {
@@ -504,11 +510,18 @@
 @keyframes stageNodePop {
   0% {
     opacity: 0;
-    transform: translateY(7px) scale(0.96);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes stageSettle {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -524,11 +537,9 @@
 @keyframes stageBarSlide {
   0% {
     opacity: 0;
-    transform: scaleX(0.35);
   }
   100% {
     opacity: 1;
-    transform: scaleX(1);
   }
 }
 
@@ -667,10 +678,10 @@
   border-radius: 11px;
   border: 1px solid var(--line-strong);
   background: var(--sheet);
-  padding: 9px 14px 10px;
+  padding: 7px 12px 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .timeline-header {
@@ -705,7 +716,7 @@
 }
 
 .timeline-step-counter {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--ink-2);
   padding: 1px 8px;
@@ -715,8 +726,8 @@
 }
 
 .timeline-nudge-btn {
-  width: 22px;
-  height: 22px;
+  width: 21px;
+  height: 21px;
   padding: 0;
   border-radius: var(--radius-xs);
   border: 1px solid var(--line-strong);
@@ -741,32 +752,32 @@
 }
 
 .timeline-track-scroll {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: visible;
-  padding-bottom: 2px;
+  padding-bottom: 0;
 }
 
 .timeline-track {
-  display: grid;
-  grid-template-columns: repeat(var(--step-count, 7), minmax(68px, 1fr));
-  align-items: start;
+  display: flex;
+  align-items: flex-start;
   width: 100%;
   min-width: 0;
 }
 
 .timeline-node {
   position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 2px 3px 1px;
+  gap: 4px;
+  padding: 1px 1px 0;
   border: none;
   background: transparent;
   cursor: pointer;
   color: var(--muted);
   text-align: center;
-  min-width: 0;
   transition: color 0.14s ease;
 }
 
@@ -775,7 +786,7 @@
 .timeline-node::after {
   content: '';
   position: absolute;
-  top: 13px;
+  top: 11.5px;
   height: 2px;
   background: var(--line-strong);
   z-index: 0;
@@ -809,13 +820,13 @@
 .timeline-circle {
   position: relative;
   z-index: 1;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   border: 1.5px solid var(--line-strong);
   background: var(--paper);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
@@ -846,21 +857,21 @@
   border: 2px solid var(--edge);
   color: var(--ink);
   box-shadow: var(--pop-shadow-sm);
-  transform: translateY(-1px) scale(1.06);
+  transform: translateY(-1px) scale(1.05);
 }
 
 .timeline-label {
   font-size: 10px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--muted);
+  width: 100%;
   max-width: 100%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: block;
+  white-space: nowrap;
   overflow: hidden;
-  word-break: break-word;
-  padding: 0 2px;
+  text-overflow: ellipsis;
+  padding: 0 1px;
 }
 
 .timeline-node--done .timeline-label {
@@ -876,13 +887,15 @@
    Responsive & Reduced Motion
    ---------------------------------------------------------------------------- */
 
-@media (max-width: 1280px) {
-  .stage-title {
-    font-size: 17px;
-  }
-
+@media (max-width: 1440px) {
   .stage-ctrl-btn .kbd {
     display: none;
+  }
+}
+
+@media (max-width: 1280px) {
+  .stage-title {
+    font-size: 16.5px;
   }
 }
 
@@ -926,6 +939,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .stage-canvas-transform > .stage-svg,
   .stage-node-enter,
   .stage-edge-enter,
   .stage-bar-enter,

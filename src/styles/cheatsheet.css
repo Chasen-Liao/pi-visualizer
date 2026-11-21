@@ -138,7 +138,7 @@
   color: var(--ink);
 }
 
-.cs-disambiguation {
+.cs-scope-note {
   margin: 0;
   padding: 8px 11px;
   border-radius: var(--radius-sm);
@@ -281,20 +281,24 @@
   gap: 7px;
 }
 
-.cs-control-top {
+.cs-control-top,
+.cs-flow-card-head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
 }
 
-.cs-phase-tag {
+.cs-phase-tag,
+.cs-phase-badge {
   font-size: 10px;
   font-weight: 800;
   padding: 1px 7px;
   border-radius: var(--radius-xs);
   border: 1px solid var(--edge);
   text-transform: uppercase;
+  white-space: nowrap;
+  width: fit-content;
 }
 
 .cs-phase-tag--outer {
