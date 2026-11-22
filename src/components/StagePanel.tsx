@@ -281,6 +281,8 @@ export function StagePanel({
         <div className="stage-viewport">
           <StageCanvas
             scene={step.scene}
+            lessonId={lesson.id}
+            stepIndex={stepIndex}
             isPlaying={isPlaying}
             replayKey={replayKey}
             animKey={`${lesson.id}-${stepIndex}`}

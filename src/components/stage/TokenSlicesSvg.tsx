@@ -11,6 +11,8 @@ import type {
 
 export interface TokenSlicesSvgProps {
   scene: TokenSlicesScene;
+  prevScene?: TokenSlicesScene;
+  enterKey?: string;
   isPlaying: boolean;
   reducedMotion?: boolean;
 }
@@ -126,26 +128,57 @@ function renderTrack(
   uid: string,
   cachePatId: string,
   reservePatId: string,
-  droppedPatId: string
-) {
+  droppedPatId: string,
+  prevTrack: TokenTrack | undefined,
+  trackStartMs: number,
+  enterKey: string,
+  reducedMotion: boolean
+): { element: React.ReactNode; endMs: number } {
   const barX = 44;
   const barW = 912;
   const clipId = `${uid}-tclip-${trackIdx}`;
+  const isTrackPersisted = Boolean(prevTrack);
+  const prevSegKeys = new Set<string>(
+    prevTrack?.segments.map((s) => `${s.id}|${s.label}|${s.tokens}`) ?? []
+  );
 
   const sumSegTokens = track.segments.reduce((acc, s) => acc + Math.max(0, s.tokens), 0);
   const scaleDenom = Math.max(track.totalBudget, sumSegTokens, 1);
 
   let cursorX = barX;
-  const placed: PlacedSegment[] = track.segments.map((seg) => {
+  let freshSegCount = 0;
+  const segStartBaseMs = isTrackPersisted ? 80 : trackStartMs + 120;
+  const placed: (PlacedSegment & {
+    isPersisted: boolean;
+    delayMs: number;
+    segClipId: string;
+  })[] = track.segments.map((seg, sIdx) => {
     const rawW = (Math.max(0, seg.tokens) / scaleDenom) * barW;
     // Guarantee non-zero segments remain visible as at least a crisp 4px sliver
     const minW = seg.tokens > 0 ? Math.min(4, Math.max(0, barX + barW - cursorX)) : 0;
     const w = Math.max(minW, Math.min(rawW, Math.max(0, barX + barW - cursorX)));
-    const item = { seg, x: cursorX, w };
+    const isPersisted =
+      isTrackPersisted && prevSegKeys.has(`${seg.id}|${seg.label}|${seg.tokens}`);
+    const delayMs = isPersisted ? 0 : segStartBaseMs + freshSegCount++ * 135;
+    const segClipId = `${uid}-sclip-${trackIdx}-${sIdx}-${enterKey}`;
+    const item = { seg, x: cursorX, w, isPersisted, delayMs, segClipId };
     cursorX += w;
     return item;
   });
   const totalUsedVisualW = cursorX - barX;
+  const trackSegmentsEndMs =
+    freshSegCount > 0
+      ? Math.max(...placed.filter((p) => !p.isPersisted).map((p) => p.delayMs)) + 260
+      : trackStartMs + 220;
+
+  const isCachePersisted = Boolean(prevTrack && prevTrack.cacheHitEnd === track.cacheHitEnd);
+  const isKeepRecentPersisted = Boolean(
+    prevTrack && prevTrack.keepRecentStart === track.keepRecentStart
+  );
+  const isCutPersisted = Boolean(prevTrack && prevTrack.cutPointPos === track.cutPointPos);
+  const isAtomicPersisted = Boolean(
+    prevTrack && prevTrack.segments.some((s) => Boolean(s.atomicGroup))
+  );
 
   const usedPct = Math.min(999, Math.round((track.usedTokens / Math.max(1, track.totalBudget)) * 100));
   const usageColor =
@@ -190,16 +223,32 @@ function renderTrack(
   const budgetText = `${formatTokens(track.usedTokens)} / ${formatTokens(track.totalBudget)} (${usedPct}%)`;
   const budgetPillW = Math.max(114, measureTextPx(budgetText, 10) + 26);
 
-  return (
-    <g
-      key={track.id || `track-${trackIdx}`}
-      className="stage-node-enter"
-      style={{ animationDelay: `${trackIdx * 70}ms` }}
-    >
+  const element = (
+    <g key={track.id || `track-${trackIdx}`}>
+      <g
+        key={isTrackPersisted ? 'stay' : enterKey}
+        className={!isTrackPersisted && !reducedMotion ? 'stage-node-enter' : undefined}
+        style={!isTrackPersisted ? { animationDelay: `${trackStartMs}ms` } : undefined}
+      >
       <defs>
         <clipPath id={clipId}>
           <rect x={barX + 1} y={barY + 1} width={barW - 2} height={barH - 2} rx={8} />
         </clipPath>
+        {!reducedMotion &&
+          placed
+            .filter((p) => p.w > 0.5 && !p.isPersisted)
+            .map((p) => (
+              <clipPath key={p.segClipId} id={p.segClipId}>
+                <rect
+                  x={p.x}
+                  y={barY}
+                  width={p.w + 1}
+                  height={barH}
+                  className="stage-clip-reveal"
+                  style={{ animationDelay: `${p.delayMs}ms` }}
+                />
+              </clipPath>
+            ))}
       </defs>
 
       {/* Track Title + Subtitle + Used/Budget Pill */}
@@ -256,7 +305,15 @@ function renderTrack(
         const maxRightBeforeBudget = barX + barW - budgetPillW - tagW - 10;
         const tagX = Math.max(barX + 4, Math.min(maxRightBeforeBudget, midX - tagW / 2));
         return (
-          <g>
+          <g
+            key={isCachePersisted ? 'stay' : enterKey}
+            className={!isCachePersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+            style={
+              !isCachePersisted
+                ? { animationDelay: `${trackSegmentsEndMs + 100}ms` }
+                : undefined
+            }
+          >
             <path
               d={`M ${barX + 2} ${bracketY + 4} L ${barX + 2} ${bracketY} L ${barX + bracketW - 1} ${bracketY} L ${barX + bracketW - 1} ${bracketY + 4}`}
               fill="none"
@@ -364,7 +421,7 @@ function renderTrack(
 
         {/* Color-Coded Tactile Segments */}
         {placed.map((item, sIdx) => {
-          const { seg, x, w } = item;
+          const { seg, x, w, isPersisted, segClipId } = item;
           if (w <= 0.5) return null;
           const isCached = Boolean(seg.cached);
           const isDelta = Boolean(seg.delta);
@@ -377,8 +434,7 @@ function renderTrack(
           return (
             <g
               key={seg.id || `seg-${sIdx}`}
-              className="stage-bar-enter"
-              style={{ animationDelay: `${trackIdx * 70 + sIdx * 35}ms` }}
+              clipPath={!isPersisted && !reducedMotion ? `url(#${segClipId})` : undefined}
               opacity={isDropped ? 0.44 : 1}
             >
               <title>
@@ -492,14 +548,24 @@ function renderTrack(
 
         {/* KeepRecent bottom accent highlight ribbon */}
         {keepRecentX !== undefined && (
-          <rect
-            x={keepRecentX}
-            y={barY + barH - 5.5}
-            width={Math.max(0, Math.min(cursorX, barX + barW - reservePx) - keepRecentX)}
-            height={5.5}
-            fill="var(--green-stroke)"
-            opacity={0.78}
-          />
+          <g
+            key={isKeepRecentPersisted ? 'stay' : enterKey}
+            className={!isKeepRecentPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+            style={
+              !isKeepRecentPersisted
+                ? { animationDelay: `${trackSegmentsEndMs + 100}ms` }
+                : undefined
+            }
+          >
+            <rect
+              x={keepRecentX}
+              y={barY + barH - 5.5}
+              width={Math.max(0, Math.min(cursorX, barX + barW - reservePx) - keepRecentX)}
+              height={5.5}
+              fill="var(--green-stroke)"
+              opacity={0.78}
+            />
+          </g>
         )}
 
         {/* Inline leader note inside free track space when all segments are ultra-minimalist */}
@@ -512,15 +578,25 @@ function renderTrack(
             const freeAvail = barW - totalUsedVisualW - reservePx - 24;
             const noteText = truncateText(`← ${summary}`, freeAvail, 10);
             return (
-              <text
-                x={cursorX + 12}
-                y={barY + barH / 2 + 3.5}
-                fontSize={10}
-                fontWeight={700}
-                fill="var(--muted)"
+              <g
+                key={isTrackPersisted ? 'stay' : enterKey}
+                className={!isTrackPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+                style={
+                  !isTrackPersisted
+                    ? { animationDelay: `${trackSegmentsEndMs}ms` }
+                    : undefined
+                }
               >
-                {noteText}
-              </text>
+                <text
+                  x={cursorX + 12}
+                  y={barY + barH / 2 + 3.5}
+                  fontSize={10}
+                  fontWeight={700}
+                  fill="var(--muted)"
+                >
+                  {noteText}
+                </text>
+              </g>
             );
           })()}
       </g>
@@ -547,7 +623,15 @@ function renderTrack(
         const pillW = Math.max(82, measureTextPx(label, 9) + 16);
         const px = Math.max(barX, Math.min(barX + barW - pillW, midX - pillW / 2));
         return (
-          <g key={`atom-${gIdx}`}>
+          <g
+            key={`atom-${gIdx}`}
+            className={!isAtomicPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+            style={
+              !isAtomicPersisted
+                ? { animationDelay: `${trackSegmentsEndMs + 100}ms` }
+                : undefined
+            }
+          >
             <path
               d={`M ${span.minX + 3} ${y0} L ${span.minX + 3} ${y1} L ${span.maxX - 3} ${y1} L ${span.maxX - 3} ${y0}`}
               fill="none"
@@ -591,7 +675,15 @@ function renderTrack(
         const tw = measureTextPx(tag, 9) + 14;
         const tx = Math.max(barX, Math.min(barX + barW - tw, midX - tw / 2));
         return (
-          <g>
+          <g
+            key={isKeepRecentPersisted ? 'stay' : enterKey}
+            className={!isKeepRecentPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+            style={
+              !isKeepRecentPersisted
+                ? { animationDelay: `${trackSegmentsEndMs + 100}ms` }
+                : undefined
+            }
+          >
             <path
               d={`M ${keepRecentX} ${y0} L ${keepRecentX} ${y1} L ${endX} ${y1} L ${endX} ${y0}`}
               fill="none"
@@ -641,50 +733,72 @@ function renderTrack(
 
         return (
           <g>
-            <line
-              x1={cx}
-              y1={barY - 12}
-              x2={cx}
-              y2={barY + barH + 14}
-              stroke="var(--rust)"
-              strokeWidth={2.4}
-              strokeDasharray="5 3"
-              strokeLinecap="round"
-            />
-            <polygon
-              points={`${cx - 5},${barY - 11} ${cx + 5},${barY - 11} ${cx},${barY - 3}`}
-              fill="var(--rust)"
-            />
-            <g transform={`translate(${px}, ${pillY})`}>
-              <rect
-                x={0}
-                y={0}
-                width={pillW}
-                height={18}
-                rx={5.5}
-                fill="var(--rose)"
+            <g
+              key={isCutPersisted ? 'stay' : `${cutPx}-${enterKey}`}
+              className={!isCutPersisted && !reducedMotion ? 'stage-blade-drop' : undefined}
+              style={
+                !isCutPersisted
+                  ? { animationDelay: `${trackSegmentsEndMs + 200}ms` }
+                  : undefined
+              }
+            >
+              <line
+                x1={cx}
+                y1={barY - 12}
+                x2={cx}
+                y2={barY + barH + 14}
                 stroke="var(--rust)"
-                strokeWidth={1.25}
+                strokeWidth={2.4}
+                strokeDasharray="5 3"
+                strokeLinecap="round"
               />
-              <text
-                x={pillW / 2}
-                y={12.4}
-                textAnchor="middle"
-                fontSize={9.3}
-                fontWeight={800}
-                fill="var(--ink)"
-              >
-                {pillText}
-              </text>
+              <polygon
+                points={`${cx - 5},${barY - 11} ${cx + 5},${barY - 11} ${cx},${barY - 3}`}
+                fill="var(--rust)"
+              />
+              <g transform={`translate(${px}, ${pillY})`}>
+                <rect
+                  x={0}
+                  y={0}
+                  width={pillW}
+                  height={18}
+                  rx={5.5}
+                  fill="var(--rose)"
+                  stroke="var(--rust)"
+                  strokeWidth={1.25}
+                />
+                <text
+                  x={pillW / 2}
+                  y={12.4}
+                  textAnchor="middle"
+                  fontSize={9.3}
+                  fontWeight={800}
+                  fill="var(--ink)"
+                >
+                  {pillText}
+                </text>
+              </g>
             </g>
           </g>
         );
       })()}
+      </g>
     </g>
   );
+
+  return {
+    element,
+    endMs: Math.max(trackSegmentsEndMs, cutPx !== undefined ? trackSegmentsEndMs + 240 : 0),
+  };
 }
 
-function renderCalloutBadges(badges: TokenCalloutBadge[], y: number) {
+function renderCalloutBadges(
+  badges: TokenCalloutBadge[],
+  y: number,
+  baseDelayMs: number,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   if (badges.length === 0) return null;
   const maxTotalW = 912;
   const gap = 14;
@@ -719,8 +833,9 @@ function renderCalloutBadges(badges: TokenCalloutBadge[], y: number) {
         return (
           <g key={`cb-${idx}`} transform={`translate(${bx}, 0)`}>
             <g
-              className="stage-node-enter"
-              style={{ animationDelay: `${160 + idx * 45}ms` }}
+              key={enterKey}
+              className={!reducedMotion ? 'stage-node-enter' : undefined}
+              style={!reducedMotion ? { animationDelay: `${baseDelayMs + idx * 100}ms` } : undefined}
             >
               <rect x={2} y={2.5} width={itemW} height={cardH} rx={8} fill="var(--stage-shadow-ambient)" />
               <rect
@@ -748,7 +863,14 @@ function renderCalloutBadges(badges: TokenCalloutBadge[], y: number) {
   );
 }
 
-function renderMultiSeriesChart(chart: TokenMiniChart, y: number, uid: string) {
+function renderMultiSeriesChart(
+  chart: TokenMiniChart,
+  y: number,
+  uid: string,
+  baseDelayMs: number,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   const x = 44;
   const w = 912;
   const h = 186;
@@ -776,7 +898,11 @@ function renderMultiSeriesChart(chart: TokenMiniChart, y: number, uid: string) {
 
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <g className="stage-node-enter" style={{ animationDelay: '210ms' }}>
+      <g
+        key={enterKey}
+        className={!reducedMotion ? 'stage-node-enter' : undefined}
+        style={!reducedMotion ? { animationDelay: `${baseDelayMs}ms` } : undefined}
+      >
       <defs>
         {chart.series[0] && (
           <linearGradient id={firstGradId} x1="0" y1="0" x2="0" y2="1">
@@ -901,11 +1027,18 @@ function renderMultiSeriesChart(chart: TokenMiniChart, y: number, uid: string) {
             {areaD && <path d={areaD} fill={`url(#${firstGradId})`} />}
             <path
               d={d}
+              pathLength={1}
               fill="none"
               stroke={strokeColor}
               strokeWidth={2.4}
               strokeLinecap="round"
               strokeLinejoin="round"
+              className={!reducedMotion ? 'stage-edge-draw' : undefined}
+              style={
+                !reducedMotion
+                  ? { animationDelay: `${baseDelayMs + 120 + sIdx * 160}ms` }
+                  : undefined
+              }
             />
             {pts.map(([mx, my], pIdx) => (
               <circle
@@ -994,7 +1127,13 @@ function renderMultiSeriesChart(chart: TokenMiniChart, y: number, uid: string) {
   );
 }
 
-export function TokenSlicesSvg({ scene, isPlaying, reducedMotion = false }: TokenSlicesSvgProps) {
+export function TokenSlicesSvg({
+  scene,
+  prevScene,
+  enterKey = '0-0',
+  isPlaying,
+  reducedMotion = false,
+}: TokenSlicesSvgProps) {
   const uid = useId().replace(/:/g, '');
   const cachePatId = `${uid}-cache-pat`;
   const reservePatId = `${uid}-reserve-pat`;
@@ -1014,6 +1153,42 @@ export function TokenSlicesSvg({ scene, isPlaying, reducedMotion = false }: Toke
   const barH = Math.round(
     Math.max(40, Math.min(hasChart ? 54 : 74, slotH - 64))
   );
+
+  // Cross-step track matching & progressive track timing
+  const prevTrackByKey = new Map<string, TokenTrack>();
+  if (prevScene) {
+    for (const t of prevScene.tracks) {
+      if (t.id) prevTrackByKey.set(`id:${t.id}`, t);
+      prevTrackByKey.set(`title:${t.title}`, t);
+    }
+  }
+
+  let freshTrackCounter = 0;
+  let allTracksEndMs = 120;
+  const renderedTracks = scene.tracks.map((track, idx) => {
+    const slotTop = tracksTop + idx * slotH;
+    const barY = Math.round(slotTop + Math.max(38, (slotH - barH) * 0.48));
+    const prevTrack =
+      (track.id ? prevTrackByKey.get(`id:${track.id}`) : undefined) ??
+      prevTrackByKey.get(`title:${track.title}`);
+    const trackStartMs = prevTrack ? 0 : 60 + freshTrackCounter++ * 280;
+    const res = renderTrack(
+      track,
+      idx,
+      barY,
+      barH,
+      uid,
+      cachePatId,
+      reservePatId,
+      droppedPatId,
+      prevTrack,
+      trackStartMs,
+      enterKey,
+      reducedMotion
+    );
+    if (res.endMs > allTracksEndMs) allTracksEndMs = res.endMs;
+    return res.element;
+  });
 
   // Keep class mounted when motion is allowed so .stage-canvas--paused freezes stripes in place
   const cacheAnimClass = !reducedMotion ? 'stage-running-stripe' : undefined;
@@ -1095,28 +1270,29 @@ export function TokenSlicesSvg({ scene, isPlaying, reducedMotion = false }: Toke
       </g>
 
       {/* Stacked Token Budget / Cache Tracks */}
-      <g>
-        {scene.tracks.map((track, idx) => {
-          const slotTop = tracksTop + idx * slotH;
-          const barY = Math.round(slotTop + Math.max(38, (slotH - barH) * 0.48));
-          return renderTrack(
-            track,
-            idx,
-            barY,
-            barH,
-            uid,
-            cachePatId,
-            reservePatId,
-            droppedPatId
-          );
-        })}
-      </g>
+      <g>{renderedTracks}</g>
 
       {/* Summary Callout Badges Row */}
-      {hasBadges && scene.calloutBadges && renderCalloutBadges(scene.calloutBadges, badgesY)}
+      {hasBadges &&
+        scene.calloutBadges &&
+        renderCalloutBadges(
+          scene.calloutBadges,
+          badgesY,
+          allTracksEndMs + 120,
+          enterKey,
+          reducedMotion
+        )}
 
       {/* Optional Multi-Series Bottom Mini-Chart */}
-      {scene.miniChart && renderMultiSeriesChart(scene.miniChart, chartY, uid)}
+      {scene.miniChart &&
+        renderMultiSeriesChart(
+          scene.miniChart,
+          chartY,
+          uid,
+          allTracksEndMs + 100,
+          enterKey,
+          reducedMotion
+        )}
     </svg>
   );
 }

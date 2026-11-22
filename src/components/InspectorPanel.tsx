@@ -75,6 +75,7 @@ export function InspectorPanel({
   }, [lesson.slug, stepIndex]);
 
   const isFinalStep = stepIndex === totalSteps - 1;
+  const nextStep = canNext ? lesson.steps[stepIndex + 1] : undefined;
 
   const completedObjectives = lesson.objectives.filter(
     (obj) => step.stepNumber >= obj.completedAtStep,
@@ -141,6 +142,7 @@ export function InspectorPanel({
 
       {/* Scrollable Step Narrative Body */}
       <div className="inspector-body" ref={bodyRef}>
+        <div key={`${lesson.slug}-${stepIndex}`} className="inspector-body-content">
         <h2 className="inspector-step-title">{step.title}</h2>
 
         <div className="inspector-paragraphs">
@@ -297,6 +299,7 @@ export function InspectorPanel({
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Step Navigation Controls */}
@@ -308,7 +311,7 @@ export function InspectorPanel({
             onClick={onPrevStep}
             disabled={!canPrev}
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={14} style={{ flexShrink: 0 }} />
             <span>上一步</span>
           </button>
 
@@ -317,18 +320,22 @@ export function InspectorPanel({
               type="button"
               className="tactile-btn tactile-btn--primary inspector-nav-btn"
               onClick={onNextStep}
+              title={nextStep ? `下一步：${nextStep.shortLabel}` : '下一步'}
             >
-              <span>下一步</span>
-              <ArrowRight size={14} />
+              <span className="inspector-nav-btn-label">
+                {nextStep ? `下一步：${nextStep.shortLabel}` : '下一步'}
+              </span>
+              <ArrowRight size={14} style={{ flexShrink: 0 }} />
             </button>
           ) : nextLesson ? (
             <button
               type="button"
               className="tactile-btn tactile-btn--primary inspector-nav-btn"
               onClick={() => onSelectLesson(nextLesson.slug)}
+              title={`下一课：${nextLesson.title}`}
             >
-              <span>下一课</span>
-              <ArrowRight size={14} />
+              <span className="inspector-nav-btn-label">下一课</span>
+              <ArrowRight size={14} style={{ flexShrink: 0 }} />
             </button>
           ) : (
             <button
@@ -336,8 +343,8 @@ export function InspectorPanel({
               className="tactile-btn tactile-btn--primary inspector-nav-btn"
               onClick={onOpenCheatsheet}
             >
-              <span>看速查表</span>
-              <ArrowRight size={14} />
+              <span className="inspector-nav-btn-label">看速查表</span>
+              <ArrowRight size={14} style={{ flexShrink: 0 }} />
             </button>
           )}
         </div>

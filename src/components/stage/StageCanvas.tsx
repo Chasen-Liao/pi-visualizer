@@ -17,6 +17,8 @@ export interface StagePan {
 
 export interface StageCanvasProps {
   scene: StageScene;
+  lessonId: string;
+  stepIndex: number;
   isPlaying: boolean;
   replayKey: number;
   animKey: string;
@@ -50,6 +52,8 @@ function usePrefersReducedMotion(): boolean {
 
 export function StageCanvas({
   scene,
+  lessonId,
+  stepIndex,
   isPlaying,
   replayKey,
   animKey,
@@ -76,6 +80,44 @@ export function StageCanvas({
 
   const reducedMotion = usePrefersReducedMotion();
 
+  // Track previous step's scene using React state-comparison pattern (StrictMode-safe)
+  const [sceneTrack, setSceneTrack] = useState<{
+    lessonId: string;
+    stepIndex: number;
+    replayKey: number;
+    currScene: StageScene;
+    prevScene?: StageScene;
+  }>(() => ({
+    lessonId,
+    stepIndex,
+    replayKey,
+    currScene: scene,
+    prevScene: undefined,
+  }));
+
+  let activePrevScene = sceneTrack.prevScene;
+  if (
+    lessonId !== sceneTrack.lessonId ||
+    stepIndex !== sceneTrack.stepIndex ||
+    replayKey !== sceneTrack.replayKey
+  ) {
+    const isIncremental =
+      lessonId === sceneTrack.lessonId &&
+      replayKey === sceneTrack.replayKey &&
+      sceneTrack.currScene.kind === scene.kind;
+    activePrevScene = isIncremental ? sceneTrack.currScene : undefined;
+    setSceneTrack({
+      lessonId,
+      stepIndex,
+      replayKey,
+      currScene: scene,
+      prevScene: activePrevScene,
+    });
+  }
+
+  const enterKey = `${stepIndex}-${replayKey}`;
+  const prevReplayKeyRef = useRef(replayKey);
+
   // Synchronize SVG SMIL animations (<animateMotion>) with isPlaying & reducedMotion
   useEffect(() => {
     const el = containerRef.current;
@@ -84,6 +126,10 @@ export function StageCanvas({
     if (!svg) return;
 
     try {
+      if (prevReplayKeyRef.current !== replayKey) {
+        prevReplayKeyRef.current = replayKey;
+        svg.setCurrentTime?.(0);
+      }
       if (!isPlaying || reducedMotion) {
         svg.pauseAnimations();
       } else {
@@ -161,13 +207,45 @@ export function StageCanvas({
   const renderScene = () => {
     switch (scene.kind) {
       case 'iso-flow':
-        return <IsoFlowSvg scene={scene} isPlaying={isPlaying} reducedMotion={reducedMotion} />;
+        return (
+          <IsoFlowSvg
+            scene={scene}
+            prevScene={activePrevScene?.kind === 'iso-flow' ? activePrevScene : undefined}
+            enterKey={enterKey}
+            isPlaying={isPlaying}
+            reducedMotion={reducedMotion}
+          />
+        );
       case 'tree':
-        return <TreeSvg scene={scene} isPlaying={isPlaying} reducedMotion={reducedMotion} />;
+        return (
+          <TreeSvg
+            scene={scene}
+            prevScene={activePrevScene?.kind === 'tree' ? activePrevScene : undefined}
+            enterKey={enterKey}
+            isPlaying={isPlaying}
+            reducedMotion={reducedMotion}
+          />
+        );
       case 'token-slices':
-        return <TokenSlicesSvg scene={scene} isPlaying={isPlaying} reducedMotion={reducedMotion} />;
+        return (
+          <TokenSlicesSvg
+            scene={scene}
+            prevScene={activePrevScene?.kind === 'token-slices' ? activePrevScene : undefined}
+            enterKey={enterKey}
+            isPlaying={isPlaying}
+            reducedMotion={reducedMotion}
+          />
+        );
       case 'swimlane':
-        return <SwimlaneSvg scene={scene} isPlaying={isPlaying} reducedMotion={reducedMotion} />;
+        return (
+          <SwimlaneSvg
+            scene={scene}
+            prevScene={activePrevScene?.kind === 'swimlane' ? activePrevScene : undefined}
+            enterKey={enterKey}
+            isPlaying={isPlaying}
+            reducedMotion={reducedMotion}
+          />
+        );
     }
   };
 
@@ -189,7 +267,7 @@ export function StageCanvas({
       title="滚轮缩放，拖拽平移，双击重置视图"
     >
       <div
-        key={`${animKey}-${replayKey}`}
+        key={`${lessonId}-${scene.kind}-${replayKey}`}
         className="stage-canvas-transform"
         style={{
           transform: `translate3d(${pan.x.toFixed(1)}px, ${pan.y.toFixed(1)}px, 0) scale(${zoom.toFixed(3)})`,

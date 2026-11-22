@@ -33,8 +33,14 @@ export function Sidebar({
 }: SidebarProps) {
   const [openChapters, setOpenChapters] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
+    let foundActive = false;
     for (const ch of chapters) {
-      initial[ch.id] = true;
+      const hasActive = ch.lessons.some((l) => l.slug === activeLessonSlug);
+      if (hasActive) foundActive = true;
+      initial[ch.id] = hasActive;
+    }
+    if (!foundActive && chapters[0]) {
+      initial[chapters[0].id] = true;
     }
     return initial;
   });
@@ -47,11 +53,12 @@ export function Sidebar({
       const next = { ...prev };
       let changed = false;
       for (const ch of chapters) {
+        const hasActive = ch.lessons.some((l) => l.slug === activeLessonSlug);
         if (next[ch.id] === undefined) {
-          next[ch.id] = true;
+          next[ch.id] = hasActive;
           changed = true;
         }
-        if (ch.lessons.some((l) => l.slug === activeLessonSlug) && !next[ch.id]) {
+        if (hasActive && !next[ch.id]) {
           next[ch.id] = true;
           changed = true;
         }

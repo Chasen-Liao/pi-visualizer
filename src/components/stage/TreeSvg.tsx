@@ -11,6 +11,8 @@ import type {
 
 export interface TreeSvgProps {
   scene: TreeScene;
+  prevScene?: TreeScene;
+  enterKey?: string;
   isPlaying: boolean;
   reducedMotion?: boolean;
 }
@@ -109,7 +111,13 @@ interface TreeNodeLayout {
   subText?: string;
 }
 
-function renderFilePreview(preview: TreeFilePreview, clipId: string) {
+function renderFilePreview(
+  preview: TreeFilePreview,
+  clipId: string,
+  prevPreview: TreeFilePreview | undefined,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   const x = 648;
   const y = 30;
   const w = 334;
@@ -122,9 +130,18 @@ function renderFilePreview(preview: TreeFilePreview, clipId: string) {
   const visibleLines = preview.lines.slice(0, maxVisibleLines);
   const hiddenCount = Math.max(0, preview.lines.length - visibleLines.length);
 
+  const hasPrevPreview = Boolean(prevPreview);
+  const prevLineTexts = new Set<string>(prevPreview?.lines.map((l) => l.text) ?? []);
+  const lineStartDelay = hasPrevPreview ? 120 : 280;
+  let freshLineCounter = 0;
+
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <g className="stage-node-enter" style={{ animationDelay: '160ms' }}>
+      <g
+        key={hasPrevPreview ? 'stay' : enterKey}
+        className={!hasPrevPreview && !reducedMotion ? 'stage-node-enter' : undefined}
+        style={!hasPrevPreview ? { animationDelay: '100ms' } : undefined}
+      >
       <defs>
         <clipPath id={clipId}>
           <rect x={0} y={headerH} width={w} height={h - headerH} rx={0} />
@@ -193,54 +210,78 @@ function renderFilePreview(preview: TreeFilePreview, clipId: string) {
           const isHi = Boolean(line.highlight);
           const isMuted = Boolean(line.muted);
           const displayLine = truncateText(line.text, w - 42, 9.4);
+          const isLinePersisted = hasPrevPreview && prevLineTexts.has(line.text);
+          const lineDelay = isLinePersisted
+            ? 0
+            : lineStartDelay + freshLineCounter++ * 115;
 
           return (
             <g key={line.id || `line-${idx}`} transform={`translate(0, ${ly})`} opacity={isMuted ? 0.44 : 1}>
-              {isHi && (
-                <>
-                  <rect
-                    x={6}
-                    y={-2}
-                    width={w - 12}
-                    height={lineH - 2}
-                    rx={4}
-                    fill="rgba(127, 194, 120, 0.16)"
-                  />
-                  <rect x={6} y={-2} width={3} height={lineH - 2} rx={1.5} fill="#7fc278" />
-                </>
-              )}
-
-              {/* Line number */}
-              <text
-                x={26}
-                y={lineH * 0.56}
-                textAnchor="end"
-                fontSize={8.8}
-                fontWeight={600}
-                fill="var(--stage-terminal-muted)"
+              <g
+                key={isLinePersisted ? 'stay' : enterKey}
+                className={!isLinePersisted && !reducedMotion ? 'stage-node-enter' : undefined}
+                style={!isLinePersisted ? { animationDelay: `${lineDelay}ms` } : undefined}
               >
-                {String(idx + 1).padStart(2, '0')}
-              </text>
+                {isHi && (
+                  <>
+                    <rect
+                      x={6}
+                      y={-2}
+                      width={w - 12}
+                      height={lineH - 2}
+                      rx={4}
+                      fill="rgba(127, 194, 120, 0.16)"
+                    />
+                    <rect x={6} y={-2} width={3} height={lineH - 2} rx={1.5} fill="#7fc278" />
+                  </>
+                )}
 
-              {/* JSONL text */}
-              <text
-                x={34}
-                y={lineH * 0.56}
-                fontSize={9.4}
-                fontWeight={isHi ? 700 : 500}
-                fill={isHi ? '#b7eb9f' : 'var(--stage-terminal-ink)'}
-              >
-                {displayLine}
-              </text>
+                {/* Line number */}
+                <text
+                  x={26}
+                  y={lineH * 0.56}
+                  textAnchor="end"
+                  fontSize={8.8}
+                  fontWeight={600}
+                  fill="var(--stage-terminal-muted)"
+                >
+                  {String(idx + 1).padStart(2, '0')}
+                </text>
+
+                {/* JSONL text */}
+                <text
+                  x={34}
+                  y={lineH * 0.56}
+                  fontSize={9.4}
+                  fontWeight={isHi ? 700 : 500}
+                  fill={isHi ? '#b7eb9f' : 'var(--stage-terminal-ink)'}
+                >
+                  {displayLine}
+                </text>
+              </g>
             </g>
           );
         })}
 
         {/* Bottom append cursor indicator */}
         <g transform={`translate(14, ${Math.min(h - 22, headerH + bodyPadY + visibleLines.length * lineH + 4)})`}>
-          <text x={0} y={10} fontSize={9.2} fontWeight={700} fill="#7fc278" opacity={0.88}>
-            {hiddenCount > 0 ? `+ 其余 ${hiddenCount} 行 · append(entry) → EOF` : '+ append(entry) → EOF'}
-          </text>
+          <g
+            key={freshLineCounter === 0 && hasPrevPreview ? 'stay' : enterKey}
+            className={
+              !(freshLineCounter === 0 && hasPrevPreview) && !reducedMotion
+                ? 'stage-node-enter'
+                : undefined
+            }
+            style={
+              !(freshLineCounter === 0 && hasPrevPreview)
+                ? { animationDelay: `${lineStartDelay + freshLineCounter * 115}ms` }
+                : undefined
+            }
+          >
+            <text x={0} y={10} fontSize={9.2} fontWeight={700} fill="#7fc278" opacity={0.88}>
+              {hiddenCount > 0 ? `+ 其余 ${hiddenCount} 行 · append(entry) → EOF` : '+ append(entry) → EOF'}
+            </text>
+          </g>
         </g>
       </g>
       </g>
@@ -248,7 +289,14 @@ function renderFilePreview(preview: TreeFilePreview, clipId: string) {
   );
 }
 
-function renderAnnotation(ann: TreeAnnotation, idx: number, maxX: number) {
+function renderAnnotation(
+  ann: TreeAnnotation,
+  idx: number,
+  maxX: number,
+  delayMs: number,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   const tone = ANNOTATION_TONE[ann.tone ?? 'violet'];
   const text = truncateText(ann.text, 230, 10.2);
   const w = Math.max(70, measureTextPx(text, 10.2) + 22);
@@ -259,8 +307,9 @@ function renderAnnotation(ann: TreeAnnotation, idx: number, maxX: number) {
   return (
     <g key={`ann-${idx}`} transform={`translate(${cx - w / 2}, ${cy - h / 2})`}>
       <g
-        className="stage-node-enter"
-        style={{ animationDelay: `${200 + idx * 45}ms` }}
+        key={enterKey}
+        className={!reducedMotion ? 'stage-label-enter' : undefined}
+        style={!reducedMotion ? { animationDelay: `${delayMs}ms` } : undefined}
       >
         <rect x={1.5} y={2} width={w} height={h} rx={7} fill="var(--stage-shadow-ambient)" />
         <rect
@@ -288,7 +337,13 @@ function renderAnnotation(ann: TreeAnnotation, idx: number, maxX: number) {
   );
 }
 
-export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProps) {
+export function TreeSvg({
+  scene,
+  prevScene,
+  enterKey = '0-0',
+  isPlaying,
+  reducedMotion = false,
+}: TreeSvgProps) {
   const uid = useId().replace(/:/g, '');
   const dotPatternId = `${uid}-dot-grid`;
   const vigGradId = `${uid}-tree-vig`;
@@ -363,6 +418,100 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
     layoutByHex.set(item.node.hexId, item);
   }
 
+  // Cross-step persistence (match nodes primarily by hexId, fallback by id)
+  const prevHexIds = new Set<string>();
+  const prevNodeIds = new Set<string>();
+  const prevSpecialEdges = new Set<string>();
+  if (prevScene) {
+    const prevHexById = new Map<string, string>();
+    for (const n of prevScene.nodes) {
+      prevHexIds.add(n.hexId);
+      prevNodeIds.add(n.id);
+      prevHexById.set(n.id, n.hexId);
+    }
+    for (const e of prevScene.edges ?? []) {
+      const k = e.kind ?? 'parent';
+      const fHex = prevHexById.get(e.from) ?? e.from;
+      const tHex = prevHexById.get(e.to) ?? e.to;
+      prevSpecialEdges.add(`${e.from}->${e.to}:${k}:${e.label ?? ''}`);
+      prevSpecialEdges.add(`${fHex}->${tHex}:${k}:${e.label ?? ''}`);
+    }
+  }
+
+  const persistedNodeIds = new Set<string>();
+  for (const item of rawLayouts) {
+    if (
+      prevScene &&
+      (prevHexIds.has(item.node.hexId) || prevNodeIds.has(item.node.id))
+    ) {
+      persistedNodeIds.add(item.node.id);
+    }
+  }
+
+  // Compute BFS tree order from roots (tie-broken by y then x)
+  const childrenMap = new Map<string, TreeNodeLayout[]>();
+  const roots: TreeNodeLayout[] = [];
+  for (const item of rawLayouts) {
+    const pid = item.node.parentId;
+    const parentLayout = pid ? layoutById.get(pid) ?? layoutByHex.get(pid) : undefined;
+    if (parentLayout && parentLayout.node.id !== item.node.id) {
+      const list = childrenMap.get(parentLayout.node.id) ?? [];
+      list.push(item);
+      childrenMap.set(parentLayout.node.id, list);
+    } else {
+      roots.push(item);
+    }
+  }
+  const byPos = (a: TreeNodeLayout, b: TreeNodeLayout) => a.y - b.y || a.x - b.x;
+  roots.sort(byPos);
+  for (const [, list] of childrenMap) {
+    list.sort(byPos);
+  }
+
+  const bfsOrdered: TreeNodeLayout[] = [];
+  const visitedTree = new Set<string>();
+  const runTreeBfs = (seeds: TreeNodeLayout[]) => {
+    const queue = [...seeds];
+    for (const s of queue) visitedTree.add(s.node.id);
+    let head = 0;
+    while (head < queue.length) {
+      const curr = queue[head++];
+      bfsOrdered.push(curr);
+      for (const child of childrenMap.get(curr.node.id) ?? []) {
+        if (!visitedTree.has(child.node.id)) {
+          visitedTree.add(child.node.id);
+          queue.push(child);
+        }
+      }
+    }
+  };
+  runTreeBfs(roots);
+  if (visitedTree.size < rawLayouts.length) {
+    const remaining = rawLayouts.filter((l) => !visitedTree.has(l.node.id)).sort(byPos);
+    for (const rem of remaining) {
+      if (!visitedTree.has(rem.node.id)) runTreeBfs([rem]);
+    }
+  }
+
+  const freshOrdered = bfsOrdered.filter((l) => !persistedNodeIds.has(l.node.id));
+  const freshStepMs = Math.min(
+    230,
+    Math.max(130, Math.round(980 / Math.max(1, freshOrdered.length)))
+  );
+  const freshRankMap = new Map<string, number>();
+  freshOrdered.forEach((l, i) => freshRankMap.set(l.node.id, i));
+
+  const nodeDelayMs = (nodeId: string): number => {
+    if (persistedNodeIds.has(nodeId)) return 0;
+    return 90 + (freshRankMap.get(nodeId) ?? 0) * freshStepMs;
+  };
+
+  let lastNodeDelay = 0;
+  for (const l of freshOrdered) {
+    const d = nodeDelayMs(l.node.id);
+    if (d > lastNodeDelay) lastNodeDelay = d;
+  }
+
   // Merge explicit edges with auto-synthesized parentId edges
   const explicitEdges: TreeEdge[] = scene.edges ?? [];
   const edgeKeys = new Set<string>(
@@ -389,6 +538,130 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
   const arrowParentId = `${uid}-arr-parent`;
   const arrowVioletId = `${uid}-arr-violet`;
   const arrowAmberId = `${uid}-arr-amber`;
+
+  // Precompute edge geometry & reveal timings so masks can live cleanly in <defs>
+  const resolvedTreeEdges = allEdges
+    .map((edge, idx) => {
+      const from = layoutById.get(edge.from) ?? layoutByHex.get(edge.from);
+      const to = layoutById.get(edge.to) ?? layoutByHex.get(edge.to);
+      if (!from || !to) return null;
+
+      const kind = edge.kind ?? 'parent';
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const isVertical = Math.abs(dy) >= Math.abs(dx) * 0.65;
+
+      let sx: number;
+      let sy: number;
+      let ex: number;
+      let ey: number;
+      let d: string;
+      let midX: number;
+      let midY: number;
+
+      if (kind === 'parent') {
+        if (isVertical) {
+          const dir = dy >= 0 ? 1 : -1;
+          sx = from.x;
+          sy = from.y + dir * (from.h / 2 + 2);
+          ex = to.x;
+          ey = to.y - dir * (to.h / 2 + 6);
+          const cy = (sy + ey) / 2;
+          d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${sx.toFixed(1)} ${cy.toFixed(1)}, ${ex.toFixed(1)} ${cy.toFixed(1)}, ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+          midX = (sx + ex) / 2;
+          midY = cy;
+        } else {
+          const dir = dx >= 0 ? 1 : -1;
+          sx = from.x + dir * (from.w / 2 + 2);
+          sy = from.y;
+          ex = to.x - dir * (to.w / 2 + 6);
+          ey = to.y;
+          const cx = (sx + ex) / 2;
+          d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${cx.toFixed(1)} ${sy.toFixed(1)}, ${cx.toFixed(1)} ${ey.toFixed(1)}, ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+          midX = cx;
+          midY = (sy + ey) / 2;
+        }
+      } else {
+        // Curved arc for lca_summary or compaction_link bowing cleanly outward
+        const dirX = dx >= 0 ? 1 : -1;
+        const dirY = dy >= 0 ? 1 : -1;
+        if (isVertical) {
+          sx = from.x + (kind === 'lca_summary' ? from.w / 2 + 2 : -from.w / 2 - 2);
+          sy = from.y;
+          ex = to.x + (kind === 'lca_summary' ? to.w / 2 + 6 : -to.w / 2 - 6);
+          ey = to.y;
+          const bow = kind === 'lca_summary' ? 56 : -56;
+          const cpx = bow > 0 ? Math.max(sx, ex) + bow : Math.min(sx, ex) + bow;
+          const safeCpx = Math.max(20, Math.min(treeMaxRight - 14, cpx));
+          d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${safeCpx.toFixed(1)} ${((sy + ey) / 2).toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+          midX = 0.25 * sx + 0.5 * safeCpx + 0.25 * ex;
+          midY = (sy + ey) / 2;
+        } else {
+          sx = from.x + dirX * (from.w / 2 + 2);
+          sy = from.y + dirY * 6;
+          ex = to.x - dirX * (to.w / 2 + 6);
+          ey = to.y;
+          const cpy = Math.min(sy, ey) - 42;
+          d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${((sx + ex) / 2).toFixed(1)} ${cpy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+          midX = (sx + ex) / 2;
+          midY = 0.25 * sy + 0.5 * cpy + 0.25 * ey;
+        }
+      }
+
+      const endpointsPersisted =
+        Boolean(prevScene) &&
+        persistedNodeIds.has(from.node.id) &&
+        persistedNodeIds.has(to.node.id);
+      const isEdgePersisted =
+        endpointsPersisted &&
+        (kind === 'parent' ||
+          prevSpecialEdges.has(`${from.node.id}->${to.node.id}:${kind}:${edge.label ?? ''}`) ||
+          prevSpecialEdges.has(`${from.node.hexId}->${to.node.hexId}:${kind}:${edge.label ?? ''}`));
+
+      const fromDelay = nodeDelayMs(from.node.id);
+      const toDelay = nodeDelayMs(to.node.id);
+      const edgeDelayMs = isEdgePersisted
+        ? 0
+        : kind === 'parent'
+          ? Math.max(0, fromDelay + 80)
+          : Math.max(fromDelay, toDelay) + 120;
+
+      const isAbandoned =
+        from.node.status === 'abandoned' || to.node.status === 'abandoned';
+      const stroke =
+        kind === 'lca_summary'
+          ? 'var(--violet-stroke)'
+          : kind === 'compaction_link'
+            ? 'var(--orange-stroke)'
+            : isAbandoned
+              ? 'var(--line-strong)'
+              : 'var(--edge)';
+      const marker =
+        kind === 'lca_summary'
+          ? arrowVioletId
+          : kind === 'compaction_link'
+            ? arrowAmberId
+            : arrowParentId;
+      const pathId = `${uid}-te-${idx}`;
+      const dashed = kind !== 'parent' || isAbandoned;
+
+      return {
+        edge,
+        idx,
+        kind,
+        d,
+        midX,
+        midY,
+        isAbandoned,
+        stroke,
+        marker,
+        pathId,
+        dashed,
+        isEdgePersisted,
+        edgeDelayMs,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
     <svg
@@ -457,6 +730,34 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
         >
           <path d="M 1 1.5 L 8.6 5 L 1 8.5 z" fill="var(--orange-stroke)" />
         </marker>
+
+        {/* Progressive edge-draw masks */}
+        {!reducedMotion &&
+          resolvedTreeEdges
+            .filter((item) => !item.isEdgePersisted)
+            .map(({ pathId, d, edgeDelayMs }) => (
+              <mask
+                key={`${pathId}-mask-${enterKey}`}
+                id={`${pathId}-mask-${enterKey}`}
+                maskUnits="userSpaceOnUse"
+                x="-40"
+                y="-40"
+                width="1080"
+                height="640"
+              >
+                <path
+                  d={d}
+                  pathLength={1}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth={28}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="stage-edge-draw"
+                  style={{ animationDelay: `${edgeDelayMs}ms` }}
+                />
+              </mask>
+            ))}
       </defs>
 
       {/* 1. Drafting Dot Grid */}
@@ -471,175 +772,124 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
 
       {/* 2. Smooth Cubic Bézier Tree Edges */}
       <g>
-        {allEdges.map((edge, idx) => {
-          const from = layoutById.get(edge.from) ?? layoutByHex.get(edge.from);
-          const to = layoutById.get(edge.to) ?? layoutByHex.get(edge.to);
-          if (!from || !to) return null;
+        {resolvedTreeEdges.map(
+          ({
+            edge,
+            idx,
+            kind,
+            d,
+            midX,
+            midY,
+            isAbandoned,
+            stroke,
+            marker,
+            pathId,
+            dashed,
+            isEdgePersisted,
+            edgeDelayMs,
+          }) => {
+            const edgeMask =
+              !isEdgePersisted && !reducedMotion
+                ? `url(#${pathId}-mask-${enterKey})`
+                : undefined;
 
-          const kind = edge.kind ?? 'parent';
-          const dx = to.x - from.x;
-          const dy = to.y - from.y;
-          const isVertical = Math.abs(dy) >= Math.abs(dx) * 0.65;
-
-          let sx: number;
-          let sy: number;
-          let ex: number;
-          let ey: number;
-          let d: string;
-          let midX: number;
-          let midY: number;
-
-          if (kind === 'parent') {
-            if (isVertical) {
-              const dir = dy >= 0 ? 1 : -1;
-              sx = from.x;
-              sy = from.y + dir * (from.h / 2 + 2);
-              ex = to.x;
-              ey = to.y - dir * (to.h / 2 + 6);
-              const cy = (sy + ey) / 2;
-              d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${sx.toFixed(1)} ${cy.toFixed(1)}, ${ex.toFixed(1)} ${cy.toFixed(1)}, ${ex.toFixed(1)} ${ey.toFixed(1)}`;
-              midX = (sx + ex) / 2;
-              midY = cy;
-            } else {
-              const dir = dx >= 0 ? 1 : -1;
-              sx = from.x + dir * (from.w / 2 + 2);
-              sy = from.y;
-              ex = to.x - dir * (to.w / 2 + 6);
-              ey = to.y;
-              const cx = (sx + ex) / 2;
-              d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} C ${cx.toFixed(1)} ${sy.toFixed(1)}, ${cx.toFixed(1)} ${ey.toFixed(1)}, ${ex.toFixed(1)} ${ey.toFixed(1)}`;
-              midX = cx;
-              midY = (sy + ey) / 2;
-            }
-          } else {
-            // Curved arc for lca_summary or compaction_link bowing cleanly outward
-            const dirX = dx >= 0 ? 1 : -1;
-            const dirY = dy >= 0 ? 1 : -1;
-            if (isVertical) {
-              sx = from.x + (kind === 'lca_summary' ? from.w / 2 + 2 : -from.w / 2 - 2);
-              sy = from.y;
-              ex = to.x + (kind === 'lca_summary' ? to.w / 2 + 6 : -to.w / 2 - 6);
-              ey = to.y;
-              const bow = kind === 'lca_summary' ? 56 : -56;
-              const cpx = bow > 0 ? Math.max(sx, ex) + bow : Math.min(sx, ex) + bow;
-              const safeCpx = Math.max(20, Math.min(treeMaxRight - 14, cpx));
-              d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${safeCpx.toFixed(1)} ${((sy + ey) / 2).toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
-              midX = 0.25 * sx + 0.5 * safeCpx + 0.25 * ex;
-              midY = (sy + ey) / 2;
-            } else {
-              sx = from.x + dirX * (from.w / 2 + 2);
-              sy = from.y + dirY * 6;
-              ex = to.x - dirX * (to.w / 2 + 6);
-              ey = to.y;
-              const cpy = Math.min(sy, ey) - 42;
-              d = `M ${sx.toFixed(1)} ${sy.toFixed(1)} Q ${((sx + ex) / 2).toFixed(1)} ${cpy.toFixed(1)} ${ex.toFixed(1)} ${ey.toFixed(1)}`;
-              midX = (sx + ex) / 2;
-              midY = 0.25 * sy + 0.5 * cpy + 0.25 * ey;
-            }
-          }
-
-          const isAbandoned =
-            from.node.status === 'abandoned' || to.node.status === 'abandoned';
-          const stroke =
-            kind === 'lca_summary'
-              ? 'var(--violet-stroke)'
-              : kind === 'compaction_link'
-                ? 'var(--orange-stroke)'
-                : isAbandoned
-                  ? 'var(--line-strong)'
-                  : 'var(--edge)';
-          const marker =
-            kind === 'lca_summary'
-              ? arrowVioletId
-              : kind === 'compaction_link'
-                ? arrowAmberId
-                : arrowParentId;
-          const pathId = `${uid}-te-${idx}`;
-          const dashed = kind !== 'parent' || isAbandoned;
-
-          return (
-            <g
-              key={`edge-${idx}`}
-              className="stage-edge-enter"
-              style={{ animationDelay: `${40 + idx * 25}ms` }}
-              opacity={isAbandoned ? 0.5 : 1}
-            >
-              <path
-                id={pathId}
-                d={d}
-                fill="none"
-                stroke={stroke}
-                strokeWidth={kind === 'parent' ? 1.85 : 2.1}
-                strokeDasharray={dashed ? (kind === 'lca_summary' ? '6 4' : '5 3.5') : undefined}
-                strokeLinecap="round"
-                markerEnd={`url(#${marker})`}
-                className={edge.animated && dashed ? 'stage-dash-flow' : undefined}
-              />
-
-              {edge.animated && !reducedMotion && (
-                <g opacity={isPlaying ? 1 : 0.72}>
-                  <circle r={6} fill={stroke} fillOpacity={0.25}>
-                    <animateMotion dur="2.1s" repeatCount="indefinite">
-                      <mpath href={`#${pathId}`} />
-                    </animateMotion>
-                  </circle>
-                  <circle r={3.2} fill={stroke} stroke="var(--stage-bg)" strokeWidth={1}>
-                    <animateMotion dur="2.1s" repeatCount="indefinite">
-                      <mpath href={`#${pathId}`} />
-                    </animateMotion>
-                  </circle>
+            return (
+              <g key={`edge-${edge.from}-${edge.to}-${idx}`} opacity={isAbandoned ? 0.5 : 1}>
+                <g mask={edgeMask}>
+                  <path
+                    id={pathId}
+                    d={d}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth={kind === 'parent' ? 1.85 : 2.1}
+                    strokeDasharray={dashed ? (kind === 'lca_summary' ? '6 4' : '5 3.5') : undefined}
+                    strokeLinecap="round"
+                    markerEnd={`url(#${marker})`}
+                    className={edge.animated && dashed ? 'stage-dash-flow' : undefined}
+                  />
                 </g>
-              )}
 
-              {edge.label && (() => {
-                const labelText = truncateText(edge.label, 140, 9.4);
-                const lw = Math.max(44, measureTextPx(labelText, 9.4) + 14);
-                const lx = Math.max(10, Math.min(treeMaxRight - lw - 6, midX - lw / 2));
-                const ly = Math.max(8, Math.min(538, midY - 9.5));
-                const pillFill =
-                  kind === 'lca_summary'
-                    ? 'var(--violet)'
-                    : kind === 'compaction_link'
-                      ? 'var(--orange)'
-                      : 'var(--sheet)';
-                return (
-                  <g transform={`translate(${lx}, ${ly})`}>
-                    <rect
-                      x={0}
-                      y={0}
-                      width={lw}
-                      height={19}
-                      rx={6}
-                      fill={pillFill}
-                      stroke={stroke}
-                      strokeWidth={1.1}
-                    />
-                    <text
-                      x={lw / 2}
-                      y={12.6}
-                      textAnchor="middle"
-                      fontSize={9.3}
-                      fontWeight={700}
-                      fill="var(--ink)"
-                    >
-                      {labelText}
-                    </text>
+                {edge.animated && !reducedMotion && (
+                  <g
+                    key={isEdgePersisted ? 'pkt-stay' : `pkt-${enterKey}`}
+                    className={!isEdgePersisted ? 'stage-packet-enter' : undefined}
+                    style={!isEdgePersisted ? { animationDelay: `${edgeDelayMs + 300}ms` } : undefined}
+                  >
+                    <g opacity={isPlaying ? 1 : 0.72}>
+                      <circle r={6} fill={stroke} fillOpacity={0.25}>
+                        <animateMotion dur="2.1s" repeatCount="indefinite">
+                          <mpath href={`#${pathId}`} />
+                        </animateMotion>
+                      </circle>
+                      <circle r={3.2} fill={stroke} stroke="var(--stage-bg)" strokeWidth={1}>
+                        <animateMotion dur="2.1s" repeatCount="indefinite">
+                          <mpath href={`#${pathId}`} />
+                        </animateMotion>
+                      </circle>
+                    </g>
                   </g>
-                );
-              })()}
-            </g>
-          );
-        })}
+                )}
+
+                {edge.label && (() => {
+                  const labelText = truncateText(edge.label, 140, 9.4);
+                  const lw = Math.max(44, measureTextPx(labelText, 9.4) + 14);
+                  const lx = Math.max(10, Math.min(treeMaxRight - lw - 6, midX - lw / 2));
+                  const ly = Math.max(8, Math.min(538, midY - 9.5));
+                  const pillFill =
+                    kind === 'lca_summary'
+                      ? 'var(--violet)'
+                      : kind === 'compaction_link'
+                        ? 'var(--orange)'
+                        : 'var(--sheet)';
+                  return (
+                    <g transform={`translate(${lx}, ${ly})`}>
+                      <g
+                        key={isEdgePersisted ? 'stay' : enterKey}
+                        className={!isEdgePersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+                        style={
+                          !isEdgePersisted ? { animationDelay: `${edgeDelayMs + 220}ms` } : undefined
+                        }
+                      >
+                        <rect
+                          x={0}
+                          y={0}
+                          width={lw}
+                          height={19}
+                          rx={6}
+                          fill={pillFill}
+                          stroke={stroke}
+                          strokeWidth={1.1}
+                        />
+                        <text
+                          x={lw / 2}
+                          y={12.6}
+                          textAnchor="middle"
+                          fontSize={9.3}
+                          fontWeight={700}
+                          fill="var(--ink)"
+                        >
+                          {labelText}
+                        </text>
+                      </g>
+                    </g>
+                  );
+                })()}
+              </g>
+            );
+          }
+        )}
       </g>
 
       {/* 3. Tactile JSONL Node Cards */}
       <g>
-        {rawLayouts.map((item, idx) => {
+        {rawLayouts.map((item) => {
           const { node, w, h, x, y, labelText, subText } = item;
           const left = x - w / 2;
           const top = y - h / 2;
           const style = KIND_STYLES[node.kind];
           const status = node.status;
+          const isPersisted = persistedNodeIds.has(node.id);
+          const delayMs = nodeDelayMs(node.id);
 
           const isActive = status === 'active';
           const isHighlight = status === 'highlight';
@@ -664,12 +914,12 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
           const hexDisplay = node.hexId.slice(0, 8);
 
           return (
-            <g
-              key={node.id}
-              className="stage-node-enter"
-              style={{ animationDelay: `${idx * 35}ms` }}
-              opacity={isAbandoned ? 0.48 : 1}
-            >
+            <g key={node.id} opacity={isAbandoned ? 0.48 : 1}>
+              <g
+                key={isPersisted ? 'stay' : enterKey}
+                className={!isPersisted && !reducedMotion ? 'stage-node-enter' : undefined}
+                style={!isPersisted ? { animationDelay: `${delayMs}ms` } : undefined}
+              >
               <title>
                 [{node.hexId}] {node.label}
                 {node.sublabel ? ` — ${node.sublabel}` : ''}
@@ -843,6 +1093,7 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
                   </g>
                 );
               })()}
+              </g>
             </g>
           );
         })}
@@ -850,11 +1101,27 @@ export function TreeSvg({ scene, isPlaying, reducedMotion = false }: TreeSvgProp
 
       {/* 4. Floating Annotations */}
       <g>
-        {(scene.annotations ?? []).map((ann, idx) => renderAnnotation(ann, idx, treeMaxRight))}
+        {(scene.annotations ?? []).map((ann, idx) =>
+          renderAnnotation(
+            ann,
+            idx,
+            treeMaxRight,
+            lastNodeDelay + 200 + idx * 90,
+            enterKey,
+            reducedMotion
+          )
+        )}
       </g>
 
       {/* 5. Optional Right-Hand Append-Only JSONL File Preview Card */}
-      {scene.filePreview && renderFilePreview(scene.filePreview, fileClipId)}
+      {scene.filePreview &&
+        renderFilePreview(
+          scene.filePreview,
+          fileClipId,
+          prevScene?.filePreview,
+          enterKey,
+          reducedMotion
+        )}
     </svg>
   );
 }

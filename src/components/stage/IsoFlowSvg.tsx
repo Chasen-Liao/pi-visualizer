@@ -13,6 +13,8 @@ import type {
 
 export interface IsoFlowSvgProps {
   scene: IsoFlowScene;
+  prevScene?: IsoFlowScene;
+  enterKey?: string;
   isPlaying: boolean;
   reducedMotion?: boolean;
 }
@@ -634,18 +636,25 @@ function renderNodeIcon(iconKey: string | undefined, x: number, y: number, color
   return <g transform={`translate(${x}, ${y})`}>{glyph}</g>;
 }
 
-function renderZone(zone: IsoZone, idx: number) {
+function renderZone(
+  zone: IsoZone,
+  idx: number,
+  isPersisted: boolean,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   const tone: StageTone = zone.tone ?? 'neutral';
   const palette = NODE_TONES[tone];
   const labelW = Math.max(66, Math.min(zone.w - 16, measureTextPx(zone.label, 10.5) + 22));
   const items = zone.items ?? [];
 
   return (
-    <g
-      key={zone.id ?? `zone-${idx}`}
-      className="stage-edge-enter"
-      style={{ animationDelay: `${idx * 35}ms` }}
-    >
+    <g key={zone.id ?? `zone-${idx}`}>
+      <g
+        key={isPersisted ? 'stay' : enterKey}
+        className={!isPersisted && !reducedMotion ? 'stage-zone-enter' : undefined}
+        style={!isPersisted ? { animationDelay: `${idx * 65}ms` } : undefined}
+      >
       {/* Tinted backdrop */}
       <rect
         x={zone.x}
@@ -773,11 +782,18 @@ function renderZone(zone: IsoZone, idx: number) {
           </g>
         );
       })()}
+      </g>
     </g>
   );
 }
 
-function renderCallout(callout: IsoCallout, idx: number) {
+function renderCallout(
+  callout: IsoCallout,
+  idx: number,
+  delayMs: number,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   const tone: StageTone = callout.tone ?? 'neutral';
   const palette = NODE_TONES[tone];
   const lines = wrapText(callout.text, 296, 10.6, 2);
@@ -790,8 +806,9 @@ function renderCallout(callout: IsoCallout, idx: number) {
   return (
     <g key={`callout-${idx}`} transform={`translate(${cx - w / 2}, ${cy - h / 2})`}>
       <g
-        className="stage-node-enter"
-        style={{ animationDelay: `${180 + idx * 45}ms` }}
+        key={enterKey}
+        className={!reducedMotion ? 'stage-label-enter' : undefined}
+        style={!reducedMotion ? { animationDelay: `${delayMs}ms` } : undefined}
       >
         <rect
           x={2}
@@ -830,7 +847,13 @@ function renderCallout(callout: IsoCallout, idx: number) {
   );
 }
 
-function renderMiniChart(chart: IsoMiniChart, uid: string) {
+function renderMiniChart(
+  chart: IsoMiniChart,
+  uid: string,
+  delayMs: number,
+  enterKey: string,
+  reducedMotion: boolean
+) {
   const cardX = 662;
   const cardY = 352;
   const cardW = 318;
@@ -880,8 +903,9 @@ function renderMiniChart(chart: IsoMiniChart, uid: string) {
   return (
     <g transform={`translate(${cardX}, ${cardY})`}>
       <g
-        className="stage-node-enter"
-        style={{ animationDelay: '210ms' }}
+        key={enterKey}
+        className={!reducedMotion ? 'stage-node-enter' : undefined}
+        style={!reducedMotion ? { animationDelay: `${delayMs}ms` } : undefined}
       >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
@@ -951,11 +975,14 @@ function renderMiniChart(chart: IsoMiniChart, uid: string) {
       <path d={areaD} fill={`url(#${gradId})`} />
       <path
         d={lineD}
+        pathLength={1}
         fill="none"
         stroke={strokeColor}
         strokeWidth={2.3}
         strokeLinecap="round"
         strokeLinejoin="round"
+        className={!reducedMotion ? 'stage-edge-draw' : undefined}
+        style={!reducedMotion ? { animationDelay: `${delayMs + 140}ms` } : undefined}
       />
 
       {/* Data points */}
@@ -1052,7 +1079,13 @@ function renderMiniChart(chart: IsoMiniChart, uid: string) {
   );
 }
 
-export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowSvgProps) {
+export function IsoFlowSvg({
+  scene,
+  prevScene,
+  enterKey = '0-0',
+  isPlaying,
+  reducedMotion = false,
+}: IsoFlowSvgProps) {
   const uid = useId().replace(/:/g, '');
   const gridPatternId = `${uid}-iso-grid`;
   const vignetteGradId = `${uid}-iso-vig`;
@@ -1064,6 +1097,126 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
     nodeMap.set(node.id, node);
     boxMap.set(node.id, computeNodeBox(node));
   }
+
+  // Cross-step persistence sets
+  const prevNodeKeys = new Set<string>();
+  const prevNodeLabelById = new Map<string, string>();
+  if (prevScene) {
+    for (const n of prevScene.nodes) {
+      prevNodeKeys.add(n.id);
+      prevNodeKeys.add(n.label);
+      prevNodeLabelById.set(n.id, n.label);
+    }
+  }
+
+  const prevEdgeKeys = new Set<string>();
+  if (prevScene) {
+    for (const e of prevScene.edges) {
+      const lbl = e.label ?? '';
+      prevEdgeKeys.add(`${e.from}->${e.to}|${lbl}`);
+      const fromLbl = prevNodeLabelById.get(e.from) ?? e.from;
+      const toLbl = prevNodeLabelById.get(e.to) ?? e.to;
+      prevEdgeKeys.add(`${fromLbl}->${toLbl}|${lbl}`);
+    }
+  }
+
+  const prevZoneKeys = new Set<string>();
+  if (prevScene?.zones) {
+    for (const z of prevScene.zones) {
+      if (z.id) prevZoneKeys.add(z.id);
+      prevZoneKeys.add(z.label);
+    }
+  }
+
+  const persistedNodeIds = new Set<string>();
+  const currNodeLabelById = new Map<string, string>();
+  for (const node of scene.nodes) {
+    currNodeLabelById.set(node.id, node.label);
+    if (prevScene && (prevNodeKeys.has(node.id) || prevNodeKeys.has(node.label))) {
+      persistedNodeIds.add(node.id);
+    }
+  }
+
+  // Topological reveal wave computation among fresh nodes
+  const freshNodes = scene.nodes.filter((n) => !persistedNodeIds.has(n.id));
+  const freshSet = new Set(freshNodes.map((n) => n.id));
+  const freshSorted = [...freshNodes].sort(
+    (a, b) => a.x + a.y * 0.35 - (b.x + b.y * 0.35)
+  );
+  const inDegree = new Map<string, number>();
+  const freshAdj = new Map<string, string[]>();
+  for (const n of freshNodes) {
+    inDegree.set(n.id, 0);
+    freshAdj.set(n.id, []);
+  }
+  const seenFreshEdge = new Set<string>();
+  for (const e of scene.edges) {
+    if (!freshSet.has(e.from) || !freshSet.has(e.to) || e.from === e.to) continue;
+    const key = `${e.from}->${e.to}`;
+    if (seenFreshEdge.has(key)) continue;
+    seenFreshEdge.add(key);
+    inDegree.set(e.to, (inDegree.get(e.to) ?? 0) + 1);
+    freshAdj.get(e.from)?.push(e.to);
+  }
+  for (const [, neighbors] of freshAdj) {
+    neighbors.sort((idA, idB) => {
+      const a = nodeMap.get(idA);
+      const b = nodeMap.get(idB);
+      if (!a || !b) return 0;
+      return a.x + a.y * 0.35 - (b.x + b.y * 0.35);
+    });
+  }
+
+  const waveMap = new Map<string, number>();
+  const bfsFromSeeds = (seeds: string[], baseWave: number) => {
+    const queue: string[] = [];
+    for (const s of seeds) {
+      if (!waveMap.has(s)) {
+        waveMap.set(s, baseWave);
+        queue.push(s);
+      }
+    }
+    let head = 0;
+    while (head < queue.length) {
+      const u = queue[head++];
+      const uWave = waveMap.get(u) ?? 0;
+      for (const v of freshAdj.get(u) ?? []) {
+        if (!waveMap.has(v)) {
+          waveMap.set(v, uWave + 1);
+          queue.push(v);
+        }
+      }
+    }
+  };
+
+  bfsFromSeeds(
+    freshSorted.filter((n) => (inDegree.get(n.id) ?? 0) === 0).map((n) => n.id),
+    0
+  );
+  while (waveMap.size < freshSorted.length) {
+    const nextSeed = freshSorted.find((n) => !waveMap.has(n.id));
+    if (!nextSeed) break;
+    bfsFromSeeds([nextSeed.id], 0);
+  }
+
+  let maxWave = 0;
+  for (const w of waveMap.values()) {
+    if (w > maxWave) maxWave = w;
+  }
+  const waveStepMs = Math.min(280, Math.max(165, Math.round(1080 / Math.max(1, maxWave + 1))));
+
+  const nodeDelayMs = (nodeId: string): number => {
+    if (persistedNodeIds.has(nodeId)) return 0;
+    const wave = waveMap.get(nodeId) ?? 0;
+    return 100 + wave * waveStepMs;
+  };
+
+  let maxFreshNodeDelay = 0;
+  for (const n of freshNodes) {
+    const d = nodeDelayMs(n.id);
+    if (d > maxFreshNodeDelay) maxFreshNodeDelay = d;
+  }
+  const afterFlowDelayMs = (maxFreshNodeDelay || 120) + 280;
 
   // Detect bidirectional edge pairs so arrows never overlap each other
   const pairSet = new Set<string>(scene.edges.map((e) => `${e.from}->${e.to}`));
@@ -1079,7 +1232,7 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
     return key;
   };
 
-  // Precompute edge metadata so markers are declared cleanly in <defs>
+  // Precompute edge metadata so markers & draw masks are declared cleanly in <defs>
   const resolvedEdges = scene.edges
     .map((edge, idx) => {
       const fromNode = nodeMap.get(edge.from);
@@ -1104,9 +1257,36 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
               ? 'var(--line-strong)'
               : resolvedPacket ?? 'var(--edge)';
 
+      const lbl = edge.label ?? '';
+      const fromLbl = currNodeLabelById.get(edge.from) ?? edge.from;
+      const toLbl = currNodeLabelById.get(edge.to) ?? edge.to;
+      const isPersisted =
+        Boolean(prevScene) &&
+        persistedNodeIds.has(edge.from) &&
+        persistedNodeIds.has(edge.to) &&
+        (prevEdgeKeys.has(`${edge.from}->${edge.to}|${lbl}`) ||
+          prevEdgeKeys.has(`${fromLbl}->${toLbl}|${lbl}`));
+
+      const edgeDelayMs = isPersisted ? 0 : nodeDelayMs(edge.from) + 120;
+      const labelDelayMs = isPersisted ? 0 : edgeDelayMs + 230;
+      const packetDelayMs = isPersisted ? 0 : edgeDelayMs + 330;
+
       const markerId = getMarkerId(strokeColor);
       const pathId = `${uid}-ep-${idx}`;
-      return { edge, idx, geom, status, strokeColor, resolvedPacket, markerId, pathId };
+      return {
+        edge,
+        idx,
+        geom,
+        status,
+        strokeColor,
+        resolvedPacket,
+        markerId,
+        pathId,
+        isPersisted,
+        edgeDelayMs,
+        labelDelayMs,
+        packetDelayMs,
+      };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
 
@@ -1155,6 +1335,34 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
             <path d="M 1 1.5 L 8.8 5 L 1 8.5 z" fill={color} />
           </marker>
         ))}
+
+        {/* Progressive path-draw masks for fresh edges */}
+        {!reducedMotion &&
+          resolvedEdges
+            .filter((item) => !item.isPersisted)
+            .map(({ pathId, geom, edgeDelayMs }) => (
+              <mask
+                key={`${pathId}-mask-${enterKey}`}
+                id={`${pathId}-mask-${enterKey}`}
+                maskUnits="userSpaceOnUse"
+                x="-40"
+                y="-40"
+                width="1080"
+                height="640"
+              >
+                <path
+                  d={geom.d}
+                  pathLength={1}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth={28}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="stage-edge-draw"
+                  style={{ animationDelay: `${edgeDelayMs}ms` }}
+                />
+              </mask>
+            ))}
       </defs>
 
       {/* 1. Isometric Floor Grid */}
@@ -1168,99 +1376,130 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
       />
 
       {/* 2. Dashed Zones / Queues */}
-      <g>{(scene.zones ?? []).map((zone, idx) => renderZone(zone, idx))}</g>
+      <g>
+        {(scene.zones ?? []).map((zone, idx) => {
+          const isZonePersisted =
+            Boolean(prevScene) &&
+            ((zone.id ? prevZoneKeys.has(zone.id) : false) || prevZoneKeys.has(zone.label));
+          return renderZone(zone, idx, isZonePersisted, enterKey, reducedMotion);
+        })}
+      </g>
 
       {/* 3. Directed Edges & Flowing Packets */}
       <g>
-        {resolvedEdges.map(({ edge, idx, geom, status, strokeColor, resolvedPacket, markerId, pathId }) => {
-          const isDim = status === 'dimmed';
-          const isAct = status === 'active';
-          const isErr = status === 'error';
-          const packetColor =
-            resolvedPacket ??
-            (isErr ? 'var(--kpi-bad)' : isAct ? 'var(--green-stroke)' : 'var(--rust)');
-          const packetCount =
-            isDim || reducedMotion
-              ? 0
-              : Math.max(0, Math.min(4, edge.packetCount ?? (isAct ? 2 : 1)));
-          const speed = Math.max(0.3, edge.packetSpeed ?? 1);
-          const durSec = Math.max(1.15, Math.min(5.5, geom.length / (115 * speed)));
+        {resolvedEdges.map(
+          ({
+            edge,
+            idx,
+            geom,
+            status,
+            strokeColor,
+            resolvedPacket,
+            markerId,
+            pathId,
+            isPersisted,
+            packetDelayMs,
+          }) => {
+            const isDim = status === 'dimmed';
+            const isAct = status === 'active';
+            const isErr = status === 'error';
+            const packetColor =
+              resolvedPacket ??
+              (isErr ? 'var(--kpi-bad)' : isAct ? 'var(--green-stroke)' : 'var(--rust)');
+            const packetCount =
+              isDim || reducedMotion
+                ? 0
+                : Math.max(0, Math.min(4, edge.packetCount ?? (isAct ? 2 : 1)));
+            const speed = Math.max(0.3, edge.packetSpeed ?? 1);
+            const durSec = Math.max(1.15, Math.min(5.5, geom.length / (115 * speed)));
+            const edgeMask =
+              !isPersisted && !reducedMotion
+                ? `url(#${pathId}-mask-${enterKey})`
+                : undefined;
 
-          return (
-            <g
-              key={edge.id ?? `edge-${idx}`}
-              className="stage-edge-enter"
-              style={{ animationDelay: `${60 + idx * 25}ms` }}
-              opacity={isDim ? 0.34 : 1}
-            >
-              {/* Soft glow halo under active/error edge */}
-              {(isAct || isErr) && (
-                <path
-                  d={geom.d}
-                  fill="none"
-                  stroke={packetColor}
-                  strokeWidth={6}
-                  strokeOpacity={0.18}
-                  strokeLinecap="round"
-                />
-              )}
+            return (
+              <g
+                key={edge.id ?? `${edge.from}->${edge.to}-${idx}`}
+                opacity={isDim ? 0.34 : 1}
+              >
+                <g mask={edgeMask}>
+                  {/* Soft glow halo under active/error edge */}
+                  {(isAct || isErr) && (
+                    <path
+                      d={geom.d}
+                      fill="none"
+                      stroke={packetColor}
+                      strokeWidth={6}
+                      strokeOpacity={0.18}
+                      strokeLinecap="round"
+                    />
+                  )}
 
-              {/* Primary edge path */}
-              <path
-                id={pathId}
-                d={geom.d}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={isAct || isErr ? 2.2 : 1.65}
-                strokeDasharray={edge.dashed ? '6 4' : undefined}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                markerEnd={`url(#${markerId})`}
-                className={edge.dashed && isAct ? 'stage-dash-flow' : undefined}
-              />
+                  {/* Primary edge path */}
+                  <path
+                    id={pathId}
+                    d={geom.d}
+                    fill="none"
+                    stroke={strokeColor}
+                    strokeWidth={isAct || isErr ? 2.2 : 1.65}
+                    strokeDasharray={edge.dashed ? '6 4' : undefined}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    markerEnd={`url(#${markerId})`}
+                    className={edge.dashed && isAct ? 'stage-dash-flow' : undefined}
+                  />
+                </g>
 
-              {/* Animated packet dots flowing along path */}
-              {packetCount > 0 &&
-                Array.from({ length: packetCount }).map((_, pIdx) => {
-                  const beginOffset = -((pIdx / packetCount) * durSec);
-                  return (
-                    <g key={`pkt-${pIdx}`} opacity={isPlaying ? 1 : 0.72}>
-                      <circle r={7} fill={packetColor} fillOpacity={0.24}>
-                        <animateMotion
-                          dur={`${durSec.toFixed(2)}s`}
-                          begin={`${beginOffset.toFixed(2)}s`}
-                          repeatCount="indefinite"
-                          rotate="auto"
-                        >
-                          <mpath href={`#${pathId}`} />
-                        </animateMotion>
-                      </circle>
-                      <circle
-                        r={3.5}
-                        fill={packetColor}
-                        stroke="var(--stage-bg)"
-                        strokeWidth={1.1}
-                      >
-                        <animateMotion
-                          dur={`${durSec.toFixed(2)}s`}
-                          begin={`${beginOffset.toFixed(2)}s`}
-                          repeatCount="indefinite"
-                          rotate="auto"
-                        >
-                          <mpath href={`#${pathId}`} />
-                        </animateMotion>
-                      </circle>
-                    </g>
-                  );
-                })}
-            </g>
-          );
-        })}
+                {/* Animated packet dots flowing along path */}
+                {packetCount > 0 && (
+                  <g
+                    key={isPersisted ? 'pkt-stay' : `pkt-${enterKey}`}
+                    className={!isPersisted && !reducedMotion ? 'stage-packet-enter' : undefined}
+                    style={!isPersisted ? { animationDelay: `${packetDelayMs}ms` } : undefined}
+                  >
+                    {Array.from({ length: packetCount }).map((_, pIdx) => {
+                      const beginOffset = -((pIdx / packetCount) * durSec);
+                      return (
+                        <g key={`pkt-${pIdx}`} opacity={isPlaying ? 1 : 0.72}>
+                          <circle r={7} fill={packetColor} fillOpacity={0.24}>
+                            <animateMotion
+                              dur={`${durSec.toFixed(2)}s`}
+                              begin={`${beginOffset.toFixed(2)}s`}
+                              repeatCount="indefinite"
+                              rotate="auto"
+                            >
+                              <mpath href={`#${pathId}`} />
+                            </animateMotion>
+                          </circle>
+                          <circle
+                            r={3.5}
+                            fill={packetColor}
+                            stroke="var(--stage-bg)"
+                            strokeWidth={1.1}
+                          >
+                            <animateMotion
+                              dur={`${durSec.toFixed(2)}s`}
+                              begin={`${beginOffset.toFixed(2)}s`}
+                              repeatCount="indefinite"
+                              rotate="auto"
+                            >
+                              <mpath href={`#${pathId}`} />
+                            </animateMotion>
+                          </circle>
+                        </g>
+                      );
+                    })}
+                  </g>
+                )}
+              </g>
+            );
+          }
+        )}
       </g>
 
       {/* 4. 2.5D Rounded Extruded Blocks */}
       <g>
-        {scene.nodes.map((node, idx) => {
+        {scene.nodes.map((node) => {
           const box = boxMap.get(node.id);
           if (!box) return null;
           const palette = NODE_TONES[node.tone];
@@ -1269,6 +1508,8 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
           const isActive = Boolean(node.active);
           const isDim = Boolean(node.dimmed);
           const { titleFs, subFs } = box;
+          const isPersisted = persistedNodeIds.has(node.id);
+          const nodeDelay = nodeDelayMs(node.id);
 
           const textStartX = box.hasIcon ? left + 39 : node.x;
           const textAnchor = box.hasIcon ? 'start' : 'middle';
@@ -1281,12 +1522,12 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
           const side = Math.round(box.depth * 0.85);
 
           return (
-            <g
-              key={node.id}
-              className="stage-node-enter"
-              style={{ animationDelay: `${idx * 35}ms` }}
-              opacity={isDim ? 0.4 : 1}
-            >
+            <g key={node.id} opacity={isDim ? 0.4 : 1}>
+              <g
+                key={isPersisted ? 'stay' : enterKey}
+                className={!isPersisted && !reducedMotion ? 'stage-node-enter' : undefined}
+                style={!isPersisted ? { animationDelay: `${nodeDelay}ms` } : undefined}
+              >
               <title>
                 {node.label}
                 {node.sublabel ? ` — ${node.sublabel}` : ''}
@@ -1511,6 +1752,7 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
                   </g>
                 );
               })()}
+              </g>
             </g>
           );
         })}
@@ -1520,13 +1762,13 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
       <g>
         {(() => {
           const placedLabels = resolvedEdges
-            .map(({ edge, idx, geom, status, strokeColor }) => {
+            .map(({ edge, idx, geom, status, strokeColor, isPersisted, labelDelayMs }) => {
               if (!edge.label) return null;
               const labelText = wrapText(edge.label, 152, 9.8, 1)[0];
               const lw = Math.max(36, measureTextPx(labelText, 9.8) + 14);
               const lx = Math.max(10, Math.min(1000 - lw - 10, geom.midX - lw / 2));
               const ly = Math.max(8, Math.min(540, geom.midY - 9.5));
-              return { idx, labelText, lw, lx, ly, status, strokeColor };
+              return { idx, labelText, lw, lx, ly, status, strokeColor, isPersisted, labelDelayMs };
             })
             .filter((item): item is NonNullable<typeof item> => item !== null);
 
@@ -1551,42 +1793,55 @@ export function IsoFlowSvg({ scene, isPlaying, reducedMotion = false }: IsoFlowS
             }
           }
 
-          return placedLabels.map(({ idx, labelText, lw, lx, ly, status, strokeColor }) => (
-            <g
-              key={`elabel-${idx}`}
-              opacity={status === 'dimmed' ? 0.45 : 1}
-              transform={`translate(${lx}, ${ly})`}
-            >
-              <rect
-                x={0}
-                y={0}
-                width={lw}
-                height={19}
-                rx={6}
-                fill="var(--stage-frosted)"
-                stroke={status === 'active' || status === 'error' ? strokeColor : 'var(--line-strong)'}
-                strokeWidth={1.1}
-              />
-              <text
-                x={lw / 2}
-                y={12.8}
-                textAnchor="middle"
-                fontSize={9.6}
-                fontWeight={700}
-                fill="var(--ink)"
+          return placedLabels.map(
+            ({ idx, labelText, lw, lx, ly, status, strokeColor, isPersisted, labelDelayMs }) => (
+              <g
+                key={`elabel-${idx}`}
+                opacity={status === 'dimmed' ? 0.45 : 1}
+                transform={`translate(${lx}, ${ly})`}
               >
-                {labelText}
-              </text>
-            </g>
-          ));
+                <g
+                  key={isPersisted ? 'stay' : enterKey}
+                  className={!isPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+                  style={!isPersisted ? { animationDelay: `${labelDelayMs}ms` } : undefined}
+                >
+                  <rect
+                    x={0}
+                    y={0}
+                    width={lw}
+                    height={19}
+                    rx={6}
+                    fill="var(--stage-frosted)"
+                    stroke={status === 'active' || status === 'error' ? strokeColor : 'var(--line-strong)'}
+                    strokeWidth={1.1}
+                  />
+                  <text
+                    x={lw / 2}
+                    y={12.8}
+                    textAnchor="middle"
+                    fontSize={9.6}
+                    fontWeight={700}
+                    fill="var(--ink)"
+                  >
+                    {labelText}
+                  </text>
+                </g>
+              </g>
+            )
+          );
         })()}
       </g>
 
       {/* 6. Floating Callout Pills */}
-      <g>{(scene.callouts ?? []).map((callout, idx) => renderCallout(callout, idx))}</g>
+      <g>
+        {(scene.callouts ?? []).map((callout, idx) =>
+          renderCallout(callout, idx, afterFlowDelayMs + idx * 100, enterKey, reducedMotion)
+        )}
+      </g>
 
       {/* 7. Optional Embedded Frosted Mini-Chart Card */}
-      {scene.miniChart && renderMiniChart(scene.miniChart, uid)}
+      {scene.miniChart &&
+        renderMiniChart(scene.miniChart, uid, afterFlowDelayMs, enterKey, reducedMotion)}
     </svg>
   );
 }

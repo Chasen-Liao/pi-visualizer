@@ -478,17 +478,46 @@
 
 /* SVG Entrance & Ambient Animations
    Important: Never set CSS `transform` inside keyframes applied to SVG `<g transform="translate(...)">`
-   elements, because CSS `transform` (even `transform: none`) overrides the SVG `transform` attribute! */
+   elements, because CSS `transform` (even `transform: none`) overrides the SVG `transform` attribute!
+   Always apply CSS motion classes to an inner `<g>` without an SVG `transform` attribute. */
 .stage-node-enter {
-  animation: stageNodePop 0.32s var(--ease-snappy) both;
+  animation: stageNodePop 0.38s var(--ease-snappy) both;
+}
+
+.stage-zone-enter {
+  animation: stageFadeIn 0.3s ease both;
 }
 
 .stage-edge-enter {
   animation: stageFadeIn 0.28s ease both;
 }
 
+.stage-edge-draw {
+  stroke-dasharray: 1.05;
+  stroke-dashoffset: 1.05;
+  animation: stagePathDraw 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stage-packet-enter {
+  animation: stageFadeIn 0.24s ease both;
+}
+
+.stage-label-enter {
+  animation: stageNodePop 0.26s var(--ease-snappy) both;
+}
+
 .stage-bar-enter {
   animation: stageBarSlide 0.32s var(--ease-snappy) both;
+}
+
+.stage-clip-reveal {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: stageClipGrowX 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.stage-blade-drop {
+  animation: stageBladeDrop 0.34s var(--ease-snappy) both;
 }
 
 .stage-active-pulse {
@@ -500,7 +529,7 @@
 }
 
 .stage-playhead-sweep {
-  animation: stagePlayheadSweep 7.5s linear infinite;
+  animation: stagePlayheadSweep 7.5s linear infinite backwards;
 }
 
 .stage-dash-flow {
@@ -510,9 +539,11 @@
 @keyframes stageNodePop {
   0% {
     opacity: 0;
+    transform: translateY(7px);
   }
   100% {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -534,12 +565,46 @@
   }
 }
 
+@keyframes stagePathDraw {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 1.05;
+  }
+  2% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}
+
 @keyframes stageBarSlide {
   0% {
     opacity: 0;
   }
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes stageClipGrowX {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes stageBladeDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -938,11 +1003,23 @@
   }
 }
 
+@media (max-width: 720px) {
+  .timeline-node:not(.timeline-node--active) .timeline-label {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .stage-canvas-transform > .stage-svg,
   .stage-node-enter,
+  .stage-zone-enter,
   .stage-edge-enter,
+  .stage-edge-draw,
+  .stage-packet-enter,
+  .stage-label-enter,
   .stage-bar-enter,
+  .stage-clip-reveal,
+  .stage-blade-drop,
   .stage-active-pulse,
   .stage-running-stripe,
   .stage-playhead-sweep,
@@ -950,5 +1027,8 @@
   .kpi-chip--flash,
   .kpi-value--in {
     animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+    transform: none !important;
   }
 }

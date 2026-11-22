@@ -10,6 +10,8 @@ import type {
 
 export interface SwimlaneSvgProps {
   scene: SwimlaneScene;
+  prevScene?: SwimlaneScene;
+  enterKey?: string;
   isPlaying: boolean;
   reducedMotion?: boolean;
 }
@@ -82,7 +84,13 @@ interface PlacedEventPill {
   text: string;
 }
 
-export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: SwimlaneSvgProps) {
+export function SwimlaneSvg({
+  scene,
+  prevScene,
+  enterKey = '0-0',
+  isPlaying,
+  reducedMotion = false,
+}: SwimlaneSvgProps) {
   const uid = useId().replace(/:/g, '');
   const runStripeId = `${uid}-run-stripe`;
   const blockedHatchId = `${uid}-blk-hatch`;
@@ -93,6 +101,22 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
   const plotLeft = 186;
   const plotW = 792;
   const plotRight = plotLeft + plotW;
+
+  // Cross-step persistence sets
+  const prevLaneIds = new Set<string>(prevScene?.lanes.map((l) => l.id) ?? []);
+  const prevBarIds = new Set<string>(prevScene?.bars.map((b) => b.id) ?? []);
+  const prevEventIds = new Set<string>((prevScene?.events ?? []).map((e) => e.id));
+  const prevBandKeys = new Set<string>(
+    (prevScene?.phaseBands ?? []).map((b) => `${b.start}|${b.end}|${b.label}`)
+  );
+  const prevConnKeys = new Set<string>(
+    (prevScene?.connectors ?? []).map(
+      (c) => `${c.fromLaneId}:${c.fromPos}->${c.toLaneId}:${c.toPos}|${c.label ?? ''}`
+    )
+  );
+
+  const timeDelayMs = (pos: number): number =>
+    Math.round(160 + (Math.max(0, Math.min(100, pos)) / 100) * 1250);
 
   const hasPhaseBands = Boolean(scene.phaseBands && scene.phaseBands.length > 0);
   const phaseY = 14;
@@ -195,6 +219,43 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
     }
   }
 
+  // Precompute connectors and bars for <defs> masks and clipPaths
+  const resolvedConnectors = (scene.connectors ?? [])
+    .map((conn, idx) => {
+      const fromLane = laneGeomMap.get(conn.fromLaneId);
+      const toLane = laneGeomMap.get(conn.toLaneId);
+      if (!fromLane || !toLane) return null;
+
+      const x1 = toPlotX(conn.fromPos);
+      const y1 = fromLane.hasBars ? fromLane.barY + fromLane.barH / 2 : fromLane.eventRailY;
+      const x2 = toPlotX(conn.toPos);
+      const y2 = toLane.hasBars ? toLane.barY + toLane.barH / 2 : toLane.eventRailY;
+      const midY = (y1 + y2) / 2;
+      const d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${midY.toFixed(1)}, ${x2.toFixed(1)} ${midY.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+      const sig = `${conn.fromLaneId}:${conn.fromPos}->${conn.toLaneId}:${conn.toPos}|${conn.label ?? ''}`;
+      const isPersisted = Boolean(prevScene) && prevConnKeys.has(sig);
+      const delayMs = isPersisted ? 0 : timeDelayMs(conn.fromPos) + 60;
+      const maskId = `${uid}-cmask-${idx}-${enterKey}`;
+      return { conn, idx, x1, x2, midY, d, isPersisted, delayMs, maskId };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+
+  const resolvedBars = scene.bars
+    .map((bar: SwimlaneBar, idx: number) => {
+      const lg = laneGeomMap.get(bar.laneId);
+      if (!lg) return null;
+      const x1 = toPlotX(bar.start);
+      const x2 = toPlotX(bar.end);
+      const bw = Math.max(28, x2 - x1);
+      const by = lg.barY;
+      const bh = lg.barH;
+      const isPersisted = Boolean(prevScene) && prevBarIds.has(bar.id);
+      const delayMs = isPersisted ? 0 : timeDelayMs(bar.start);
+      const clipId = `${uid}-bclip-${idx}-${enterKey}`;
+      return { bar, idx, x1, bw, by, bh, isPersisted, delayMs, clipId };
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
+
   // Keep class mounted when motion is allowed so .stage-canvas--paused freezes stripes in place
   const runAnimClass = !reducedMotion ? 'stage-running-stripe' : undefined;
 
@@ -247,6 +308,51 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
         >
           <path d="M 1 1.5 L 8.6 5 L 1 8.5 z" fill="var(--edge)" />
         </marker>
+
+        {/* Progressive connector draw masks */}
+        {!reducedMotion &&
+          resolvedConnectors
+            .filter((item) => !item.isPersisted)
+            .map(({ maskId, d, delayMs }) => (
+              <mask
+                key={maskId}
+                id={maskId}
+                maskUnits="userSpaceOnUse"
+                x="-40"
+                y="-40"
+                width="1080"
+                height="640"
+              >
+                <path
+                  d={d}
+                  pathLength={1}
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth={24}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="stage-edge-draw"
+                  style={{ animationDelay: `${delayMs}ms` }}
+                />
+              </mask>
+            ))}
+
+        {/* Progressive left-to-right bar reveal clipPaths */}
+        {!reducedMotion &&
+          resolvedBars
+            .filter((item) => !item.isPersisted)
+            .map(({ clipId, x1, by, bw, bh, delayMs }) => (
+              <clipPath key={clipId} id={clipId}>
+                <rect
+                  x={x1 - 6}
+                  y={by - 14}
+                  width={bw + 16}
+                  height={bh + 24}
+                  className="stage-clip-reveal"
+                  style={{ animationDelay: `${delayMs}ms` }}
+                />
+              </clipPath>
+            ))}
       </defs>
 
       {/* 1. Optional Shaded Phase Bands */}
@@ -256,9 +362,16 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
         const bw = Math.max(20, bx2 - bx1);
         const tone = TONE_PALETTE[band.tone ?? 'neutral'];
         const label = truncateText(band.label, bw - 16, 10.2);
+        const isBandPersisted =
+          Boolean(prevScene) && prevBandKeys.has(`${band.start}|${band.end}|${band.label}`);
 
         return (
-          <g key={`band-${idx}`} className="stage-edge-enter" style={{ animationDelay: `${idx * 40}ms` }}>
+          <g key={`band-${idx}`}>
+            <g
+              key={isBandPersisted ? 'stay' : enterKey}
+              className={!isBandPersisted && !reducedMotion ? 'stage-zone-enter' : undefined}
+              style={!isBandPersisted ? { animationDelay: `${70 + idx * 110}ms` } : undefined}
+            >
             {/* Column shading down across all lanes */}
             <rect
               x={bx1}
@@ -310,6 +423,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
             >
               {label}
             </text>
+            </g>
           </g>
         );
       })}
@@ -322,9 +436,15 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
           const isAlt = idx % 2 === 1;
           const label = truncateText(lane.label, headerW - 22, 11.4);
           const sub = lane.sublabel ? truncateText(lane.sublabel, headerW - 22, 9.2) : undefined;
+          const isLanePersisted = Boolean(prevScene) && prevLaneIds.has(lane.id);
 
           return (
             <g key={lane.id}>
+              <g
+                key={isLanePersisted ? 'stay' : enterKey}
+                className={!isLanePersisted && !reducedMotion ? 'stage-zone-enter' : undefined}
+                style={!isLanePersisted ? { animationDelay: '40ms' } : undefined}
+              >
               {/* Timeline row subtle alternating backdrop */}
               <rect
                 x={plotLeft}
@@ -405,6 +525,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
                   </text>
                 )}
               </g>
+              </g>
             </g>
           );
         })}
@@ -462,7 +583,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
         <g
           className="stage-playhead-sweep"
           opacity={isPlaying ? 0.55 : 0.2}
-          style={{ pointerEvents: 'none' }}
+          style={{ pointerEvents: 'none', animationDelay: '1450ms' }}
         >
           <polygon
             points={`${plotLeft - 4.5},${axisY + 2} ${plotLeft + 4.5},${axisY + 2} ${plotLeft},${axisY + 9}`}
@@ -482,31 +603,23 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
 
       {/* 5. Cross-Lane Causality Connectors (behind bars & event markers) */}
       <g>
-        {(scene.connectors ?? []).map((conn, idx) => {
-          const fromLane = laneGeomMap.get(conn.fromLaneId);
-          const toLane = laneGeomMap.get(conn.toLaneId);
-          if (!fromLane || !toLane) return null;
-
-          const x1 = toPlotX(conn.fromPos);
-          const y1 = fromLane.hasBars ? fromLane.barY + fromLane.barH / 2 : fromLane.eventRailY;
-          const x2 = toPlotX(conn.toPos);
-          const y2 = toLane.hasBars ? toLane.barY + toLane.barH / 2 : toLane.eventRailY;
-
-          const midY = (y1 + y2) / 2;
-          const d = `M ${x1.toFixed(1)} ${y1.toFixed(1)} C ${x1.toFixed(1)} ${midY.toFixed(1)}, ${x2.toFixed(1)} ${midY.toFixed(1)}, ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+        {resolvedConnectors.map(({ conn, idx, x1, x2, midY, d, isPersisted, delayMs, maskId }) => {
           const isDashed = conn.dashed !== false;
+          const connMask = !isPersisted && !reducedMotion ? `url(#${maskId})` : undefined;
 
           return (
-            <g key={`conn-${idx}`} className="stage-edge-enter" style={{ animationDelay: `${120 + idx * 35}ms` }}>
-              <path
-                d={d}
-                fill="none"
-                stroke="var(--edge)"
-                strokeWidth={1.5}
-                strokeDasharray={isDashed ? '5 3.5' : undefined}
-                strokeOpacity={0.78}
-                markerEnd={`url(#${connArrowId})`}
-              />
+            <g key={`conn-${idx}`}>
+              <g mask={connMask}>
+                <path
+                  d={d}
+                  fill="none"
+                  stroke="var(--edge)"
+                  strokeWidth={1.5}
+                  strokeDasharray={isDashed ? '5 3.5' : undefined}
+                  strokeOpacity={0.78}
+                  markerEnd={`url(#${connArrowId})`}
+                />
+              </g>
               {conn.label && (() => {
                 const txt = truncateText(conn.label, 160, 9);
                 const lw = Math.max(40, measureTextPx(txt, 9) + 14);
@@ -514,26 +627,32 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
                 const ly = midY - 9;
                 return (
                   <g transform={`translate(${lx}, ${ly})`}>
-                    <rect
-                      x={0}
-                      y={0}
-                      width={lw}
-                      height={17}
-                      rx={5}
-                      fill="var(--stage-frosted)"
-                      stroke="var(--line-strong)"
-                      strokeWidth={1}
-                    />
-                    <text
-                      x={lw / 2}
-                      y={11.5}
-                      textAnchor="middle"
-                      fontSize={8.8}
-                      fontWeight={700}
-                      fill="var(--ink)"
+                    <g
+                      key={isPersisted ? 'stay' : enterKey}
+                      className={!isPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+                      style={!isPersisted ? { animationDelay: `${delayMs + 200}ms` } : undefined}
                     >
-                      {txt}
-                    </text>
+                      <rect
+                        x={0}
+                        y={0}
+                        width={lw}
+                        height={17}
+                        rx={5}
+                        fill="var(--stage-frosted)"
+                        stroke="var(--line-strong)"
+                        strokeWidth={1}
+                      />
+                      <text
+                        x={lw / 2}
+                        y={11.5}
+                        textAnchor="middle"
+                        fontSize={8.8}
+                        fontWeight={700}
+                        fill="var(--ink)"
+                      >
+                        {txt}
+                      </text>
+                    </g>
                   </g>
                 );
               })()}
@@ -544,15 +663,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
 
       {/* 6. Rounded Execution Bars + Status Styles + Order Badges */}
       <g>
-        {scene.bars.map((bar: SwimlaneBar, idx: number) => {
-          const lg = laneGeomMap.get(bar.laneId);
-          if (!lg) return null;
-
-          const x1 = toPlotX(bar.start);
-          const x2 = toPlotX(bar.end);
-          const bw = Math.max(28, x2 - x1);
-          const by = lg.barY;
-          const bh = lg.barH;
+        {resolvedBars.map(({ bar, idx, x1, bw, by, bh, isPersisted, clipId }) => {
           const tone = TONE_PALETTE[bar.tone];
           const status = bar.status ?? 'done';
 
@@ -586,8 +697,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
           return (
             <g
               key={bar.id || `bar-${idx}`}
-              className="stage-bar-enter"
-              style={{ animationDelay: `${60 + idx * 38}ms` }}
+              clipPath={!isPersisted && !reducedMotion ? `url(#${clipId})` : undefined}
             >
               <title>
                 {bar.label}
@@ -748,13 +858,16 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
           const isEmph = Boolean(ev.emphasized);
           const pillCenterX = pillX + pillW / 2;
           const stemY = pillY < my ? pillY + pillH : pillY;
+          const isEvPersisted = Boolean(prevScene) && prevEventIds.has(ev.id);
+          const evDelayMs = isEvPersisted ? 0 : timeDelayMs(ev.pos);
 
           return (
-            <g
-              key={ev.id || `ev-${idx}`}
-              className="stage-node-enter"
-              style={{ animationDelay: `${140 + idx * 30}ms` }}
-            >
+            <g key={ev.id || `ev-${idx}`}>
+              <g
+                key={isEvPersisted ? 'stay' : enterKey}
+                className={!isEvPersisted && !reducedMotion ? 'stage-label-enter' : undefined}
+                style={!isEvPersisted ? { animationDelay: `${evDelayMs}ms` } : undefined}
+              >
               <title>{ev.label}</title>
               {/* Hairline leader stem connecting marker to staggered label pill */}
               <line
@@ -817,6 +930,7 @@ export function SwimlaneSvg({ scene, isPlaying, reducedMotion = false }: Swimlan
                   strokeWidth={1.4}
                 />
               )}
+              </g>
             </g>
           );
         })}

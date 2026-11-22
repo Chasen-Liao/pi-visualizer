@@ -89,6 +89,24 @@
   gap: 9px;
 }
 
+.inspector-body-content {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  animation: inspectorStepIn 0.24s var(--ease-snappy) both;
+}
+
+@keyframes inspectorStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .inspector-step-title {
   margin: 0;
   font-size: 14.5px;
@@ -459,7 +477,7 @@
 
 .inspector-nav-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 8px;
 }
 
@@ -467,6 +485,14 @@
   height: 32px;
   padding: 0 10px;
   font-size: 11.8px;
+  min-width: 0;
+}
+
+.inspector-nav-btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .inspector-shortcuts {
@@ -596,5 +622,11 @@
 
   .objectives-list {
     max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inspector-body-content {
+    animation: none !important;
   }
 }
